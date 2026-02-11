@@ -136,6 +136,39 @@ class VectorStore:
             return 0
         return self.index.ntotal
 
+    def search(self, query_vector: np.ndarray, k: int = 5) -> List[Dict[str, Any]]:
+        """
+        Search for similar chunks
+        
+        Args:
+            query_vector (np.ndarray): Query embedding vector
+            k (int): Number of results to return
+            
+        Returns:
+            list: List of dictionaries with chunk data and similarity scores
+        """
+        if self.index is None or self.index.ntotal == 0:
+            return []
+            
+        # Reshape query vector if needed
+        if len(query_vector.shape) == 1:
+            query_vector = query_vector.reshape(1, -1)
+            
+        # Search
+        distances, indices = self.index.search(query_vector.astype('float32'), k)
+        
+        results = []
+        for i, idx in enumerate(indices[0]):
+            if idx == -1:  # No more results
+                continue
+            
+            if idx < len(self.metadata):
+                result = self.metadata[idx].copy()
+                result['distance'] = float(distances[0][i])
+                results.append(result)
+            
+        return results
+
 
 # Global vector store instance
 _vector_store = None
