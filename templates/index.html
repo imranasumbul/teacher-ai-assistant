@@ -2,151 +2,95 @@
 <html lang="en">
 
 <head>
+    <title>Teacher AI Assistant - Dashboard</title>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Teacher AI Assistant - Upload</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            max-width: 800px;
-            margin: 50px auto;
-            padding: 20px;
-            background: #f5f5f5;
-        }
-
-        .container {
-            background: white;
-            padding: 30px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-        }
-
-        h1 {
-            color: #333;
-            margin-bottom: 20px;
-        }
-
-        input[type="file"] {
-            margin: 20px 0;
-            padding: 10px;
-            border: 2px dashed #ccc;
-            width: 100%;
-            cursor: pointer;
-        }
-
-        button {
-            background: #4CAF50;
-            color: white;
-            padding: 12px 30px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 16px;
-        }
-
-        button:hover {
-            background: #45a049;
-        }
-
-        #result {
-            margin-top: 20px;
-            padding: 15px;
-            border-radius: 4px;
-            display: none;
-        }
-
-        .success {
-            background: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
-        }
-
-        .error {
-            background: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
-        }
-
-        pre {
-            white-space: pre-wrap;
-            word-wrap: break-word;
-        }
-    </style>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/static.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 </head>
 
-<body>
-    <div class="container">
-        <h1>🎓 Teacher AI Assistant - Upload Notes</h1>
-        <p>Upload PDF or .txt files to build your knowledge base</p>
+<body class="bg-light">
 
-        <form id="uploadForm" onsubmit="uploadFile(event)">
-            <input type="file" id="fileInput" accept=".pdf,.txt" required>
-            <button type="submit">Upload File</button>
-        </form>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-5 shadow-sm">
+        <div class="container">
+            <a class="navbar-brand fw-bold" href="/">
+                <i class="fas fa-robot me-2 text-primary"></i> Teacher AI Assistant
+            </a>
+        </div>
+    </nav>
 
-        <div id="result"></div>
+    <div class="container hero-section">
+        <div class="text-center mb-5">
+            <h1 class="display-4 fw-bold text-dark mb-3">Welcome to your AI Dashboard</h1>
+            <p class="lead text-muted">Select a portal below to get started analyzing documents, uploading assignments,
+                or managing student doubts.</p>
+        </div>
+
+        <div class="row g-4 justify-content-center">
+
+            <!-- Student Doubt Portal Card -->
+            <div class="col-md-4">
+                <a href="/student_doubt" class="text-decoration-none">
+                    <div class="card card-green h-100 p-4 text-center">
+                        <div class="card-body d-flex flex-column align-items-center">
+                            <div class="icon-circle bg-success text-white mb-3"
+                                style="width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 24px;">
+                                <i class="fas fa-question"></i>
+                            </div>
+                            <h4 class="card-title text-dark fw-bold mb-3">Student Doubt Portal</h4>
+                            <p class="card-text text-muted mb-4 text-center">A dedicated space where students can ask
+                                questions and clarify their doubts securely.</p>
+                            <button class="btn btn-green w-100 mt-auto fw-bold shadow-sm">Enter Portal <i
+                                    class="fas fa-arrow-right ms-2"></i></button>
+                        </div>
+                    </div>
+                </a>
+            </div>
+
+            <!-- Assignment Upload Portal Card -->
+            <div class="col-md-4">
+                <a href="/assignment_upload" class="text-decoration-none">
+                    <div class="card card-yellow h-100 p-4 text-center">
+                        <div class="card-body d-flex flex-column align-items-center">
+                            <div class="icon-circle bg-warning text-dark mb-3"
+                                style="width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 24px;">
+                                <i class="fas fa-file-upload"></i>
+                            </div>
+                            <h4 class="card-title text-dark fw-bold mb-3">Assignment Upload</h4>
+                            <p class="card-text text-muted mb-4 text-center">Students can easily upload their completed
+                                assignments and track submission statuses.</p>
+                            <button class="btn btn-yellow w-100 mt-auto fw-bold shadow-sm">Enter Portal <i
+                                    class="fas fa-arrow-right ms-2"></i></button>
+                        </div>
+                    </div>
+                </a>
+            </div>
+
+            <!-- Teacher Notes Portal Card -->
+            <div class="col-md-4">
+                <a href="/teacher_notes" class="text-decoration-none">
+                    <div class="card card-blue h-100 p-4 text-center">
+                        <div class="card-body d-flex flex-column align-items-center">
+                            <div class="icon-circle bg-primary text-white mb-3"
+                                style="width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 24px;">
+                                <i class="fas fa-book"></i>
+                            </div>
+                            <h4 class="card-title text-dark fw-bold mb-3">Teacher Notes Upload</h4>
+                            <p class="card-text text-muted mb-4 text-center">Upload class notes or syllabi for AI
+                                processing, enhancing the student learning experience.</p>
+                            <button class="btn btn-blue w-100 mt-auto fw-bold shadow-sm">Enter Portal <i
+                                    class="fas fa-arrow-right ms-2"></i></button>
+                        </div>
+                    </div>
+                </a>
+            </div>
+
+        </div>
     </div>
 
-    <script>
-        async function uploadFile(event) {
-            event.preventDefault();
-
-            const fileInput = document.getElementById('fileInput');
-            const resultDiv = document.getElementById('result');
-
-            if (!fileInput.files.length) {
-                resultDiv.className = 'error';
-                resultDiv.textContent = 'Please select a file first';
-                resultDiv.style.display = 'block';
-                return;
-            }
-
-            const formData = new FormData();
-            formData.append('file', fileInput.files[0]);
-
-            // Show loading message
-            resultDiv.className = 'success';
-            resultDiv.innerHTML = '⏳ Uploading and processing...';
-            resultDiv.style.display = 'block';
-
-            try {
-                const response = await fetch('/upload', {
-                    method: 'POST',
-                    body: formData
-                });
-
-                const data = await response.json();
-
-                if (response.ok) {
-                    resultDiv.className = 'success';
-                    resultDiv.innerHTML = `
-                        <strong>✅ Success!</strong><br><br>
-                        <strong>📄 Response Details:</strong><br>
-                        <pre style="background: #f0f0f0; padding: 10px; border-radius: 4px; text-align: left; overflow-x: auto;">${JSON.stringify(data, null, 2)}</pre>
-                    `;
-                } else {
-                    resultDiv.className = 'error';
-                    resultDiv.innerHTML = `
-                        <strong>❌ Error!</strong><br><br>
-                        <pre style="text-align: left;">${JSON.stringify(data, null, 2)}</pre>
-                    `;
-                }
-
-                resultDiv.style.display = 'block';
-            } catch (error) {
-                resultDiv.className = 'error';
-                resultDiv.innerHTML = `
-                    <strong>❌ Connection Error!</strong><br><br>
-                    Error: ${error.message}<br><br>
-                    <strong>Possible causes:</strong><br>
-                    • Server is not running (run: python app.py)<br>
-                    • Server crashed (check terminal for errors)<br><br>
-                    <strong>Check your terminal for error messages!</strong>
-                `;
-                resultDiv.style.display = 'block';
-            }
-        }
-    </script>
+    <!-- Bootstrap JS for simple animations if needed -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 
 </html>

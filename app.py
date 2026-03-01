@@ -6,11 +6,6 @@ from flask import Flask, request, jsonify, render_template
 from werkzeug.utils import secure_filename
 from dotenv import load_dotenv
 
-from flask import Flask, request, jsonify, render_template
-from werkzeug.utils import secure_filename
-import os
-from dotenv import load_dotenv
-
 # Load env variables
 load_dotenv()
 
@@ -29,12 +24,6 @@ init_db()
 # Concept catalog service
 from concept_service import get_or_create_concept_ids
 
-app = Flask(__name__)
-
-import json
-import re
-import json
-
 from personalization import (
     get_or_create_student,
     log_interaction,
@@ -45,6 +34,11 @@ from personalization import (
     build_personalization_instruction,
 )
 
+app = Flask(__name__)
+
+# =========================
+# Helpers
+# =========================
 def parse_json_from_text(text: str):
     text = (text or "").strip()
     text = text.replace("```json", "").replace("```", "").strip()
@@ -55,6 +49,10 @@ def parse_json_from_text(text: str):
         return json.loads(m.group(0))
     except Exception:
         return None
+
+def allowed_file(filename):
+    return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
+
 # =========================
 # Configuration
 # =========================
@@ -72,24 +70,30 @@ else:
 
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-
-def allowed_file(filename):
-    return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
-
 # =========================
-# Routes
+# Routes (Pages)
 # =========================
-
 @app.route("/")
 def home():
     return render_template("index.html")
+
+@app.route("/student_doubt")
+def student_doubt():
+    return render_template("student_doubt.html")
+
+@app.route("/assignment_upload")
+def assignment_upload():
+    return render_template("assignment_upload.html")
+
+@app.route("/teacher_notes")
+def teacher_notes():
+    return render_template("teacher_notes.html")
 
 # =========================
 # Upload Teacher Notes
 # =========================
 @app.route("/upload", methods=["POST"])
 def upload_file():
-
     if "file" not in request.files:
         return jsonify({"error": "No file part"}), 400
 
@@ -116,14 +120,17 @@ def upload_file():
         return jsonify({
             "message": "File processed successfully",
             "chunks": len(chunks)
-        })
+        }), 200
 
     except Exception as e:
+        print("❌ Upload processing error:", e)
         return jsonify({"error": str(e)}), 500
 
+# =========================
+# Ask Doubt (RAG + Personalization)
+# =========================
 @app.route("/ask", methods=["POST"])
 def ask_question():
-
     if gemini_client is None:
         return jsonify({"error": "Gemini not configured"}), 500
 
@@ -153,8 +160,6 @@ def ask_question():
         retrieved_texts = [r.get("chunk_text", "") for r in results]
         context_str = "\n\n".join([t for t in retrieved_texts if t]).strip()
 
-        
-
         # 2) Personalization style (robust to empty history)
         mastery_map = get_mastery_map(student_id, subject) or {}
         mistake_counts = get_mistake_counts(student_id, subject) or {}
@@ -175,8 +180,9 @@ def ask_question():
             mastery_map=mastery_map,
             weak_concepts=weak_concepts,
             mistake_counts=mistake_counts,
-            cold_start=cold_start,   # ⭐ important
+            cold_start=cold_start,
         )
+
         # 3) ONE Gemini call: answer + concepts (JSON)
         combined_prompt = f"""
 You are a teacher assistant.
@@ -229,10 +235,10 @@ STUDENT QUESTION:
         if answer.strip().lower() == "not in syllabus":
             concept_labels = ["out_of_syllabus"]
 
-        # 5) Map labels -> concept_ids (stored in concept_catalog)
-        concept_ids = get_or_create_concept_ids(subject,concept_labels)
+        # 5) Map labels -> concept_ids
+        concept_ids = get_or_create_concept_ids(subject, concept_labels)
 
-        # 6) Log interaction (NOW we store student->concept usage)
+        # 6) Log interaction
         log_interaction(
             student_id=student_id,
             subject=subject,
@@ -246,12 +252,15 @@ STUDENT QUESTION:
             "answer": answer,
             "concept_labels": concept_labels,
             "concept_ids": concept_ids
-        })
+        }), 200
 
     except Exception as e:
         print("❌ Error:", e)
         return jsonify({"error": str(e)}), 500
 
+# =========================
+# Feedback Route (Mastery update)
+# =========================
 @app.route("/feedback", methods=["POST"])
 def feedback():
     data = request.get_json(silent=True) or {}
@@ -260,10 +269,9 @@ def feedback():
     subject = (data.get("subject") or "general").strip()
     question_text = (data.get("question_text") or "").strip()
 
-    feedback_value = (data.get("feedback") or "").strip().lower()  # "understood" / "confused"
+    feedback_value = (data.get("feedback") or "").strip().lower()  # understood / confused
     concept_ids = data.get("concept_ids")
 
-    # Validate
     if not student_id:
         return jsonify({"error": "student_id required"}), 400
 
@@ -273,17 +281,13 @@ def feedback():
     if not isinstance(concept_ids, list) or not all(isinstance(x, int) for x in concept_ids):
         return jsonify({"error": "concept_ids must be a list of integers"}), 400
 
-    # Ensure student exists
     get_or_create_student(student_id)
 
-    # Update mastery
     update_mastery(student_id, subject, concept_ids, feedback_value)
 
-    # Update mistakes only if confused
     if feedback_value == "confused":
         increment_mistake(student_id, subject, concept_ids, mistake_tag="concept_unclear")
 
-    # Log feedback interaction
     log_interaction(
         student_id=student_id,
         subject=subject,

@@ -1,8 +1,24 @@
+# Environment variables
 .env
+
+# Python cache
 __pycache__/
 *.pyc
-*.pyc
+*.pyo
+*.pyd
+
+# Virtual environment
 venv/
-.env
+env/
+
+# FAISS vector database files
+faiss_index.bin
+metadata.json
+
+# Uploads folder (keep folder, ignore contents)
 uploads/*
 !uploads/.gitkeep
+
+# OS files
+.DS_Store
+Thumbs.db
