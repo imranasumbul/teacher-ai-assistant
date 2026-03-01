@@ -35,6 +35,18 @@ def allowed_file(filename):
 def home():
     return render_template('index.html')
 
+@app.route("/student_doubt")
+def student_doubt():
+    return render_template('student_doubt.html')
+
+@app.route("/assignment_upload")
+def assignment_upload():
+    return render_template('assignment_upload.html')
+
+@app.route("/teacher_notes")
+def teacher_notes():
+    return render_template('teacher_notes.html')
+
 @app.route("/upload", methods=['POST'])
 def upload_file():
     """
