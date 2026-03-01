@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import json
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Optional
 
 from db import (
     get_session,
@@ -69,7 +69,7 @@ def log_interaction(
     finally:
         session.close()
 
-from typing import Optional
+
 
 def get_mastery_map(student_id: str, subject: str, concept_ids: Optional[List[int]] = None) -> Dict[int, float]:
     """
@@ -102,7 +102,7 @@ def get_mastery_map(student_id: str, subject: str, concept_ids: Optional[List[in
         return {int(r.concept_id): float(r.mastery) for r in rows}
     finally:
         session.close()
-from typing import Optional
+
 
 def get_mistake_counts(
     student_id: str,
@@ -148,6 +148,8 @@ def update_mastery(student_id: str, subject: str, concept_ids: List[int], feedba
     if not concept_ids:
         return
 
+    concept_ids = list(set(concept_ids))
+
     delta = DELTA_UNDERSTOOD if feedback == "understood" else DELTA_CONFUSED
 
     session = get_session()
@@ -190,6 +192,8 @@ def increment_mistake(
     if not concept_ids:
         return
 
+    concept_ids = list(set(concept_ids))
+
     session = get_session()
     try:
         for cid in concept_ids:
@@ -218,23 +222,30 @@ def increment_mistake(
         session.commit()
     finally:
         session.close()
-
 def build_personalization_instruction(
-    subject,
-    avg_mastery,
-    mastery_map,
-    weak_concepts,
-    mistake_counts,
-    cold_start=False
-):
+    subject: str,
+    avg_mastery: float,
+    mastery_map: Dict[int, float],
+    weak_concepts: List[Tuple[int, float]] | None,
+    mistake_counts: Dict[int, int] | None,
+    cold_start: bool = False
+) -> str:
+    # --- summarize confusion level ---
+    mistake_counts = mistake_counts or {}
+    total_mistakes = sum(int(v) for v in mistake_counts.values()) if mistake_counts else 0
+
+    # small helper: list a few weak concepts ids (optional)
+    weak_ids = [str(cid) for cid, score in (weak_concepts or [])]
+
     if cold_start:
+        # Cold start: keep it simple but consistent with your /ask RULES
         return (
             f"Student learning profile for subject '{subject}': no prior data.\n"
-            "Teaching style:\n"
-            "- Use clear and simple language.\n"
-            "- Answer in 2 to 3 short sentences.\n"
-            "- Define one key term if helpful.\n"
-            "- No bullet points.\n"
+            "Teaching style rules:\n"
+            "- Use clear, simple language.\n"
+            "- Answer in 2 short sentences.\n"
+            "- Define ONE key term if helpful.\n"
+            "- Do not use bullet points in the final answer.\n"
             "- Focus on conceptual clarity."
         )
 
@@ -242,44 +253,69 @@ def build_personalization_instruction(
     if avg_mastery < 0.4:
         base_style = (
             "Student has LOW mastery.\n"
+            "Teaching style rules:\n"
             "- Use very simple language.\n"
             "- Explain step-by-step.\n"
-            "- Answer in 3 to 4 sentences.\n"
+            "- Prefer 3 to 5 short sentences.\n"
             "- Define key terms.\n"
             "- Avoid jargon.\n"
         )
     elif avg_mastery < 0.7:
         base_style = (
             "Student has MODERATE mastery.\n"
+            "Teaching style rules:\n"
             "- Use clear explanation.\n"
-            "- Answer in 2 to 3 sentences.\n"
-            "- Include brief clarification if needed.\n"
+            "- Prefer 2 to 4 short sentences.\n"
+            "- Add a brief clarification if needed.\n"
         )
     else:
         base_style = (
             "Student has HIGH mastery.\n"
+            "Teaching style rules:\n"
             "- Answer concisely.\n"
-            "- 1 or 2 sentences maximum.\n"
-            "- Focus on final idea, minimal explanation.\n"
+            "- Prefer 1 to 2 sentences.\n"
+            "- Focus on the final idea.\n"
         )
 
     # ---------- weakness emphasis ----------
     if weak_concepts:
         weakness_note = (
-            "Student has weak understanding in some topics.\n"
-            "- Add one clarifying phrase to prevent confusion.\n"
+            f"Student has weaker topics (concept_ids): {', '.join(weak_ids[:3])}.\n"
+            "- Add ONE clarifying phrase to prevent confusion.\n"
         )
     else:
         weakness_note = ""
 
-    # ---------- mistake awareness ----------
-    if mistake_counts:
+    # ---------- mistake awareness (LEVELS) ----------
+    # This is the key upgrade: visible prompt changes as mistakes increase.
+    if total_mistakes >= 4:
         mistake_note = (
-            "Student previously made mistakes in this subject.\n"
+            "Student has repeated confusion recently.\n"
+            "- Start with: 'In simple words:'\n"
+            "- Use 3 to 5 short sentences.\n"
+            "- Include ONE tiny example.\n"
+            "- End with a quick check question: 'Does this make sense?'\n"
+        )
+    elif total_mistakes >= 2:
+        mistake_note = (
+            "Student has been confused more than once.\n"
+            "- Rephrase the core idea once in simpler words.\n"
+            "- Include ONE tiny example.\n"
+        )
+    elif total_mistakes >= 1:
+        mistake_note = (
+            "Student was confused before.\n"
             "- Avoid ambiguous wording.\n"
-            "- Emphasize correctness clearly.\n"
+            "- Add one short clarification.\n"
         )
     else:
         mistake_note = ""
 
-    return f"Teaching style rules:\n{base_style}{weakness_note}{mistake_note}- No bullet points."
+    return (
+        f"{base_style}"
+        f"{weakness_note}"
+        f"{mistake_note}"
+        "Final answer formatting:\n"
+        "- Do not use bullet points.\n"
+        "- Keep sentences short.\n"
+    )

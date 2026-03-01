@@ -3,10 +3,10 @@ import requests
 BASE_URL = "http://127.0.0.1:5000"
 
 payload = {
-    "student_id": "S1",
+    "student_id": "S2",
     "subject": "ML",
-    "question_text": "What is Artificial Bee Colony Optimization?",
-    "concept_ids": [1, 2, 3, 4, 7],   # <-- replace with YOUR concept_ids from /ask
+    "question_text": "How do supervised and unsupervised learning differ?",
+    "concept_ids": [9, 10,11],   # <-- replace with YOUR concept_ids from /ask
     "feedback": "confused"  # or "understood"
 }
 

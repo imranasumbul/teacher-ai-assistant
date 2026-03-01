@@ -135,6 +135,8 @@ def ask_question():
         return jsonify({"error": "Gemini not configured"}), 500
 
     data = request.get_json(silent=True) or {}
+    debug = bool(data.get("debug", False))
+
     question = (data.get("question") or "").strip()
     if not question:
         return jsonify({"error": "Question required"}), 400
@@ -142,11 +144,15 @@ def ask_question():
     student_id = (data.get("student_id") or "S1").strip()
     subject = (data.get("subject") or "general").strip()
 
-    print(f"\n❓ Question: {question} | subject={subject} | student_id={student_id}")
+    print(f"\n❓ Question: {question} | subject={subject} | student_id={student_id} | debug={debug}")
 
     try:
         # 0) Ensure student exists
         get_or_create_student(student_id)
+
+        # Subject-level (fallback) stats used for THIS call
+        subject_mastery_map = get_mastery_map(student_id, subject) or {}
+        subject_mistake_counts = get_mistake_counts(student_id, subject) or {}
 
         # 1) RAG retrieval
         embedding_pairs = generate_embeddings([question])
@@ -160,9 +166,9 @@ def ask_question():
         retrieved_texts = [r.get("chunk_text", "") for r in results]
         context_str = "\n\n".join([t for t in retrieved_texts if t]).strip()
 
-        # 2) Personalization style (robust to empty history)
-        mastery_map = get_mastery_map(student_id, subject) or {}
-        mistake_counts = get_mistake_counts(student_id, subject) or {}
+        # 2) Personalization style (subject-level for this call)
+        mastery_map = subject_mastery_map
+        mistake_counts = subject_mistake_counts
 
         cold_start = not mastery_map and not mistake_counts
 
@@ -193,8 +199,15 @@ TASK:
 1) Answer the student's question using ONLY the teacher notes.
 2) Extract 2 to 5 LEARNING CONCEPT labels (core syllabus topics) relevant to the question.
 
+STUDENT STATE:
+- cold_start = {cold_start}
+- avg_mastery = {avg_mastery}
+- mistake_counts = {mistake_counts}
+
 RULES:
-- Answer must be 1 or 2 sentences maximum.
+- If cold_start is true: answer in 2 short sentences.
+- If student has confusion signals (mistake_counts not empty OR avg_mastery < 0.6): answer in 3–5 short sentences and include ONE tiny example.
+- Otherwise (confident student): answer in 1–2 sentences.
 - No bullet points.
 - If answer is not found in the notes, answer must be exactly: "Not in syllabus"
 - If answer is "Not in syllabus", set concept_labels = ["out_of_syllabus"].
@@ -238,6 +251,10 @@ STUDENT QUESTION:
         # 5) Map labels -> concept_ids
         concept_ids = get_or_create_concept_ids(subject, concept_labels)
 
+        # Concept-specific stats (these affect NEXT time these concepts appear)
+        concept_mastery_map = get_mastery_map(student_id, subject, concept_ids) or {}
+        concept_mistake_counts = get_mistake_counts(student_id, subject, concept_ids) or {}
+
         # 6) Log interaction
         log_interaction(
             student_id=student_id,
@@ -248,11 +265,26 @@ STUDENT QUESTION:
             outcome="answered",
         )
 
-        return jsonify({
+        payload = {
             "answer": answer,
             "concept_labels": concept_labels,
-            "concept_ids": concept_ids
-        }), 200
+            "concept_ids": concept_ids,
+        }
+
+        if debug:
+            payload["debug"] = {
+                "cold_start": cold_start,
+                "avg_mastery_subject": avg_mastery,
+                "weak_concepts_subject": weak_concepts,
+                "subject_mastery_map_used": subject_mastery_map,
+                "subject_mistake_counts_used": subject_mistake_counts,
+                "concept_mastery_map_next_time": concept_mastery_map,
+                "concept_mistake_counts_next_time": concept_mistake_counts,
+                "style_instruction_used": style_instruction[:800],
+                "retrieved_chunks_preview": [t[:120] for t in retrieved_texts[:3]],
+            }
+
+        return jsonify(payload), 200
 
     except Exception as e:
         print("❌ Error:", e)
