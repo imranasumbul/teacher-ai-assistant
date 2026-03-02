@@ -57,7 +57,7 @@ if __name__ == "__main__":
     print("=" * 60)
 
     test_ask_question(
-        "How do supervised and unsupervised learning differ?",
+        "What is Artificial Bee Colony Algorithm?",
         subject="ML",
         student_id="S2",
         debug=True,          # ✅ Python True

@@ -166,6 +166,35 @@ def ask_question():
         retrieved_texts = [r.get("chunk_text", "") for r in results]
         context_str = "\n\n".join([t for t in retrieved_texts if t]).strip()
 
+        # ✅ Guard: if nothing retrieved, don't call Gemini
+        if not context_str:
+            concept_labels = ["out_of_syllabus"]
+            concept_ids = get_or_create_concept_ids(subject, concept_labels)
+
+            # Log interaction (still useful)
+            log_interaction(
+                student_id=student_id,
+                subject=subject,
+                interaction_type="doubt",
+                question_text=question,
+                concept_ids=concept_ids,
+                outcome="not_in_syllabus_no_context",
+            )
+
+            payload = {
+                "answer": "Not in syllabus",
+                "concept_labels": concept_labels,
+                "concept_ids": concept_ids,
+            }
+
+            if debug:
+                payload["debug"] = {
+                    "reason": "no_context_retrieved",
+                    "retrieved_chunks_preview": [t[:120] for t in retrieved_texts[:3]],
+                }
+
+            return jsonify(payload), 200
+
         # 2) Personalization style (subject-level for this call)
         mastery_map = subject_mastery_map
         mistake_counts = subject_mistake_counts
@@ -205,10 +234,6 @@ STUDENT STATE:
 - mistake_counts = {mistake_counts}
 
 RULES:
-- If cold_start is true: answer in 2 short sentences.
-- If student has confusion signals (mistake_counts not empty OR avg_mastery < 0.6): answer in 3–5 short sentences and include ONE tiny example.
-- Otherwise (confident student): answer in 1–2 sentences.
-- No bullet points.
 - If answer is not found in the notes, answer must be exactly: "Not in syllabus"
 - If answer is "Not in syllabus", set concept_labels = ["out_of_syllabus"].
 

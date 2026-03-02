@@ -28,10 +28,10 @@ def get_or_create_student(student_id: str, name: str | None = None, class_code: 
         if s:
             # optional update if passed
             updated = False
-            if name and not s.name:
+            if name and s.name != name:
                 s.name = name
                 updated = True
-            if class_code and not s.class_code:
+            if class_code and s.class_code != class_code:
                 s.class_code = class_code
                 updated = True
             if updated:
