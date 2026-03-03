@@ -1,191 +1,367 @@
+import os
+import json
+import re
+
 from flask import Flask, request, jsonify, render_template
 from werkzeug.utils import secure_filename
-import os
 from dotenv import load_dotenv
 
+# Load env variables
 load_dotenv()
+
 from extractor import extract_text
 from chunker import chunk_text
 from embedder import generate_embeddings
 from vector_store import save_to_vector_store, get_vector_store
-import google.generativeai as genai
+
+# NEW Gemini SDK
+from google import genai
+
+# DB init
+from db import init_db
+init_db()
+
+# Concept catalog service
+from concept_service import get_or_create_concept_ids
+
+from personalization import (
+    get_or_create_student,
+    log_interaction,
+    get_mastery_map,
+    get_mistake_counts,
+    update_mastery,
+    increment_mistake,
+    build_personalization_instruction,
+)
 
 app = Flask(__name__)
 
-# Configuration
-UPLOAD_FOLDER = 'uploads'
-ALLOWED_EXTENSIONS = {'pdf', 'txt'}
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-
-# Configure Gemini API
-GOOGLE_API_KEY = os.environ.get("GEMINI_API_KEY")
-if not GOOGLE_API_KEY:
-    print("❌ WARNING: GEMINI_API_KEY environment variable not set!")
-else:
-    genai.configure(api_key=GOOGLE_API_KEY)
-
-# Ensure upload folder exists
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+# =========================
+# Helpers
+# =========================
+def parse_json_from_text(text: str):
+    text = (text or "").strip()
+    text = text.replace("```json", "").replace("```", "").strip()
+    m = re.search(r"\{.*\}", text, flags=re.DOTALL)
+    if not m:
+        return None
+    try:
+        return json.loads(m.group(0))
+    except Exception:
+        return None
 
 def allowed_file(filename):
-    """Check if file has allowed extension"""
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+    return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
 
+# =========================
+# Configuration
+# =========================
+UPLOAD_FOLDER = "uploads"
+ALLOWED_EXTENSIONS = {"pdf", "txt"}
+app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
+
+# Gemini API
+GOOGLE_API_KEY = os.environ.get("GEMINI_API_KEY")
+if not GOOGLE_API_KEY:
+    print("❌ WARNING: GEMINI_API_KEY not set")
+    gemini_client = None
+else:
+    gemini_client = genai.Client(api_key=GOOGLE_API_KEY)
+
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+# =========================
+# Routes (Pages)
+# =========================
 @app.route("/")
 def home():
-    return render_template('index.html')
+    return render_template("index.html")
 
 @app.route("/student_doubt")
 def student_doubt():
-    return render_template('student_doubt.html')
+    return render_template("student_doubt.html")
 
 @app.route("/assignment_upload")
 def assignment_upload():
-    return render_template('assignment_upload.html')
+    return render_template("assignment_upload.html")
 
 @app.route("/teacher_notes")
 def teacher_notes():
-    return render_template('teacher_notes.html')
+    return render_template("teacher_notes.html")
 
-@app.route("/upload", methods=['POST'])
+# =========================
+# Upload Teacher Notes
+# =========================
+@app.route("/upload", methods=["POST"])
 def upload_file():
-    """
-    Upload endpoint for teacher notes (PDF and .txt files only)
-    """
-    # Check if file is in request
-    if 'file' not in request.files:
-        return jsonify({"error": "No file part in request"}), 400
-    
-    file = request.files['file']
-    
-    # Check if file is selected
-    if file.filename == '':
+    if "file" not in request.files:
+        return jsonify({"error": "No file part"}), 400
+
+    file = request.files["file"]
+
+    if file.filename == "":
         return jsonify({"error": "No file selected"}), 400
-    
-    # Validate file extension
+
     if not allowed_file(file.filename):
-        return jsonify({"error": "Only PDF and .txt files are allowed"}), 400
-    
-    # Save file
+        return jsonify({"error": "Only PDF and txt allowed"}), 400
+
     filename = secure_filename(file.filename)
-    filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+    filepath = os.path.join(app.config["UPLOAD_FOLDER"], filename)
     file.save(filepath)
-    
-    # Print success message to console
-    print(f"✅ FILE UPLOADED SUCCESSFULLY: {filename}")
-    print(f"   Saved to: {filepath}")
-    
-    # Extract text from uploaded file
+
+    print(f"✅ Uploaded: {filename}")
+
     try:
         extracted_text = extract_text(filepath)
-        text_length = len(extracted_text)
-        
-        # Chunk the extracted text
         chunks = chunk_text(extracted_text)
-        
-        # Generate embeddings for chunks
         embedding_pairs = generate_embeddings(chunks)
-        
-        # Save embeddings to FAISS vector store
         save_to_vector_store(embedding_pairs, filename)
-        
-        # Extract just the embeddings and chunks for response
-        embedding_dim = embedding_pairs[0][0].shape[0] if embedding_pairs else 0
-        
-        return jsonify({
-            "message": "✅ PHASE 1 COMPLETE - File uploaded, processed, and saved to vector store!",
-            "filename": filename,
-            "filepath": filepath,
-            "text_length": text_length,
-            "total_chunks": len(chunks),
-            "total_embeddings": len(embedding_pairs),
-            "embedding_dimension": embedding_dim,
-            "vector_store_saved": True,
-            "chunk_preview": chunks[0][:150] if chunks else ""
-        }), 200
-    
-    except Exception as e:
-        print(f"❌ ERROR PROCESSING FILE: {str(e)}")
-        return jsonify({
-            "error": f"File uploaded but processing failed: {str(e)}"
-        }), 500
 
-@app.route("/ask", methods=['POST'])
+        return jsonify({
+            "message": "File processed successfully",
+            "chunks": len(chunks)
+        }), 200
+
+    except Exception as e:
+        print("❌ Upload processing error:", e)
+        return jsonify({"error": str(e)}), 500
+
+# =========================
+# Ask Doubt (RAG + Personalization)
+# =========================
+@app.route("/ask", methods=["POST"])
 def ask_question():
-    """
-    Step 9: Accept student question
-    """
-    data = request.get_json()
-    if not data or 'question' not in data:
-        return jsonify({"error": "Question is required"}), 400
-        
-    question = data['question'].strip()
+    if gemini_client is None:
+        return jsonify({"error": "Gemini not configured"}), 500
+
+    data = request.get_json(silent=True) or {}
+    debug = bool(data.get("debug", False))
+
+    question = (data.get("question") or "").strip()
     if not question:
-        return jsonify({"error": "Question cannot be empty"}), 400
-        
-    print(f"\n❓ Student Question: {question}")
-    
+        return jsonify({"error": "Question required"}), 400
+
+    student_id = (data.get("student_id") or "S1").strip()
+    subject = (data.get("subject") or "general").strip()
+
+    print(f"\n❓ Question: {question} | subject={subject} | student_id={student_id} | debug={debug}")
+
     try:
-        # Step 10: Generate embedding
-        # generate_embeddings returns list of (embedding, text) tuples
+        # 0) Ensure student exists
+        get_or_create_student(student_id)
+
+        # Subject-level (fallback) stats used for THIS call
+        subject_mastery_map = get_mastery_map(student_id, subject) or {}
+        subject_mistake_counts = get_mistake_counts(student_id, subject) or {}
+
+        # 1) RAG retrieval
         embedding_pairs = generate_embeddings([question])
         if not embedding_pairs:
             return jsonify({"error": "Failed to generate embedding"}), 500
-            
-        query_vector = embedding_pairs[0][0]
-        
-        # Step 11: Retrieve relevant chunks
-        store = get_vector_store()
-        results = store.search(query_vector, k=5)
-        
-        # Log retrieved chunks
-        print("\n🔍 Retrieved Context:")
-        retrieved_texts = []
-        for i, res in enumerate(results):
-            text = res['chunk_text']
-            retrieved_texts.append(text)
-            print(f"Chunk {i+1} (dist={res.get('distance', 0):.4f}): {text[:100]}...")
-            
-        context_str = "\n\n".join(retrieved_texts)
-        
-        # Step 12: Prompt Engineering
-        system_instructions = (
-            "You are a teacher assistant. You must answer ONLY using the provided teacher notes.\n"
-            "If the answer is not found in the notes, respond exactly with:\n"
-            "'Not in syllabus'"
-        )
-        
-        prompt = f"""{system_instructions}
 
-Teacher Notes:
+        query_vector = embedding_pairs[0][0]
+        store = get_vector_store()
+        results = store.search(query_vector, k=5) if store else []
+
+        retrieved_texts = [r.get("chunk_text", "") for r in results]
+        context_str = "\n\n".join([t for t in retrieved_texts if t]).strip()
+
+        # ✅ Guard: if nothing retrieved, don't call Gemini
+        if not context_str:
+            concept_labels = ["out_of_syllabus"]
+            concept_ids = get_or_create_concept_ids(subject, concept_labels)
+
+            # Log interaction (still useful)
+            log_interaction(
+                student_id=student_id,
+                subject=subject,
+                interaction_type="doubt",
+                question_text=question,
+                concept_ids=concept_ids,
+                outcome="not_in_syllabus_no_context",
+            )
+
+            payload = {
+                "answer": "Not in syllabus",
+                "concept_labels": concept_labels,
+                "concept_ids": concept_ids,
+            }
+
+            if debug:
+                payload["debug"] = {
+                    "reason": "no_context_retrieved",
+                    "retrieved_chunks_preview": [t[:120] for t in retrieved_texts[:3]],
+                }
+
+            return jsonify(payload), 200
+
+        # 2) Personalization style (subject-level for this call)
+        mastery_map = subject_mastery_map
+        mistake_counts = subject_mistake_counts
+
+        cold_start = not mastery_map and not mistake_counts
+
+        if cold_start:
+            avg_mastery = 0.5
+            weak_concepts = []
+        else:
+            scores = [float(v) for v in mastery_map.values() if isinstance(v, (int, float))]
+            avg_mastery = sum(scores) / len(scores) if scores else 0.5
+            weak_concepts = sorted(mastery_map.items(), key=lambda kv: kv[1])[:3]
+
+        style_instruction = build_personalization_instruction(
+            subject=subject,
+            avg_mastery=avg_mastery,
+            mastery_map=mastery_map,
+            weak_concepts=weak_concepts,
+            mistake_counts=mistake_counts,
+            cold_start=cold_start,
+        )
+
+        # 3) ONE Gemini call: answer + concepts (JSON)
+        combined_prompt = f"""
+You are a teacher assistant.
+
+{style_instruction}
+
+TASK:
+1) Answer the student's question using ONLY the teacher notes.
+2) Extract 2 to 5 LEARNING CONCEPT labels (core syllabus topics) relevant to the question.
+
+STUDENT STATE:
+- cold_start = {cold_start}
+- avg_mastery = {avg_mastery}
+- mistake_counts = {mistake_counts}
+
+RULES:
+- If answer is not found in the notes, answer must be exactly: "Not in syllabus"
+- If answer is "Not in syllabus", set concept_labels = ["out_of_syllabus"].
+
+Concept labels must be noun-phrase learning topics (algorithms/theories/models/techniques).
+Do NOT output: definition, mechanism, approach, components, applications, examples.
+
+Return ONLY valid JSON in this exact format:
+{{
+  "answer": "...",
+  "concept_labels": ["...", "..."]
+}}
+
+TEACHER NOTES:
 {context_str}
 
-Student Question:
-{question}"""
+STUDENT QUESTION:
+{question}
+""".strip()
 
-        # Step 13: LLM Call
-        try:
-            # model = genai.GenerativeModel('gemini-1.5-flash')
-            model = genai.GenerativeModel('gemini-2.5-flash')
-            response = model.generate_content(
-                prompt,
-                generation_config=genai.types.GenerationConfig(
-                    temperature=0.3
-                )
-            )
-            
-            answer = response.text.strip()
-            print(f"🤖 LLM Answer: {answer}")
-            
-            return jsonify({"answer": answer})
-            
-        except Exception as llm_err:
-            print(f"❌ LLM Error: {str(llm_err)}")
-            return jsonify({"error": f"LLM Error: {str(llm_err)}"}), 500
+        resp = gemini_client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=combined_prompt,
+        )
+
+        parsed = parse_json_from_text(resp.text)
+
+        if not parsed:
+            answer = (resp.text or "").strip()
+            concept_labels = ["general"]
+        else:
+            answer = (parsed.get("answer") or "").strip()
+            concept_labels = parsed.get("concept_labels") or ["general"]
+            if not isinstance(concept_labels, list):
+                concept_labels = ["general"]
+
+        # 4) Enforce out-of-syllabus
+        if answer.strip().lower() == "not in syllabus":
+            concept_labels = ["out_of_syllabus"]
+
+        # 5) Map labels -> concept_ids
+        concept_ids = get_or_create_concept_ids(subject, concept_labels)
+
+        # Concept-specific stats (these affect NEXT time these concepts appear)
+        concept_mastery_map = get_mastery_map(student_id, subject, concept_ids) or {}
+        concept_mistake_counts = get_mistake_counts(student_id, subject, concept_ids) or {}
+
+        # 6) Log interaction
+        log_interaction(
+            student_id=student_id,
+            subject=subject,
+            interaction_type="doubt",
+            question_text=question,
+            concept_ids=concept_ids,
+            outcome="answered",
+        )
+
+        payload = {
+            "answer": answer,
+            "concept_labels": concept_labels,
+            "concept_ids": concept_ids,
+        }
+
+        if debug:
+            payload["debug"] = {
+                "cold_start": cold_start,
+                "avg_mastery_subject": avg_mastery,
+                "weak_concepts_subject": weak_concepts,
+                "subject_mastery_map_used": subject_mastery_map,
+                "subject_mistake_counts_used": subject_mistake_counts,
+                "concept_mastery_map_next_time": concept_mastery_map,
+                "concept_mistake_counts_next_time": concept_mistake_counts,
+                "style_instruction_used": style_instruction[:800],
+                "retrieved_chunks_preview": [t[:120] for t in retrieved_texts[:3]],
+            }
+
+        return jsonify(payload), 200
 
     except Exception as e:
-        print(f"❌ Error processing question: {str(e)}")
+        print("❌ Error:", e)
         return jsonify({"error": str(e)}), 500
 
+# =========================
+# Feedback Route (Mastery update)
+# =========================
+@app.route("/feedback", methods=["POST"])
+def feedback():
+    data = request.get_json(silent=True) or {}
+
+    student_id = (data.get("student_id") or "").strip()
+    subject = (data.get("subject") or "general").strip()
+    question_text = (data.get("question_text") or "").strip()
+
+    feedback_value = (data.get("feedback") or "").strip().lower()  # understood / confused
+    concept_ids = data.get("concept_ids")
+
+    if not student_id:
+        return jsonify({"error": "student_id required"}), 400
+
+    if feedback_value not in ("understood", "confused"):
+        return jsonify({"error": "feedback must be 'understood' or 'confused'"}), 400
+
+    if not isinstance(concept_ids, list) or not all(isinstance(x, int) for x in concept_ids):
+        return jsonify({"error": "concept_ids must be a list of integers"}), 400
+
+    get_or_create_student(student_id)
+
+    update_mastery(student_id, subject, concept_ids, feedback_value)
+
+    if feedback_value == "confused":
+        increment_mistake(student_id, subject, concept_ids, mistake_tag="concept_unclear")
+
+    log_interaction(
+        student_id=student_id,
+        subject=subject,
+        interaction_type="feedback",
+        question_text=question_text or "(feedback)",
+        concept_ids=concept_ids,
+        outcome=feedback_value,
+    )
+
+    return jsonify({
+        "message": "✅ Feedback saved",
+        "student_id": student_id,
+        "subject": subject,
+        "concept_ids": concept_ids,
+        "feedback": feedback_value
+    }), 200
+
+# =========================
 if __name__ == "__main__":
     app.run(debug=True)
