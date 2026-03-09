@@ -207,16 +207,17 @@ def ask_question():
         else:
             scores = [float(v) for v in mastery_map.values() if isinstance(v, (int, float))]
             avg_mastery = sum(scores) / len(scores) if scores else 0.5
-            weak_concepts = sorted(mastery_map.items(), key=lambda kv: kv[1])[:3]
+            weak_concepts =[(cid, score)for cid, score in mastery_map.items()if score < 0.5]
+
 
         style_instruction = build_personalization_instruction(
-            subject=subject,
-            avg_mastery=avg_mastery,
-            mastery_map=mastery_map,
-            weak_concepts=weak_concepts,
-            mistake_counts=mistake_counts,
-            cold_start=cold_start,
-        )
+                    subject=subject,
+                    avg_mastery=avg_mastery,
+                    mastery_map=mastery_map,
+                    weak_concepts=weak_concepts,
+                    mistake_counts=mistake_counts,
+                    cold_start=cold_start,
+                )
 
         # 3) ONE Gemini call: answer + concepts (JSON)
         combined_prompt = f"""
