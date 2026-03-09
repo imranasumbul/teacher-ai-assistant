@@ -11,6 +11,17 @@ from db import (
     MistakePattern,
     Interaction,
 )
+from db import ConceptCatalog
+
+def get_concept_labels(concept_ids: List[int]) -> Dict[int, str]:
+    session = get_session()
+    try:
+        rows = session.query(ConceptCatalog).filter(
+            ConceptCatalog.concept_id.in_(concept_ids)
+        ).all()
+        return {r.concept_id: r.label for r in rows}
+    finally:
+        session.close()
 
 DEFAULT_MASTERY = 0.5
 DELTA_UNDERSTOOD = 0.08
@@ -222,6 +233,7 @@ def increment_mistake(
         session.commit()
     finally:
         session.close()
+        
 def build_personalization_instruction(
     subject: str,
     avg_mastery: float,
@@ -235,7 +247,9 @@ def build_personalization_instruction(
     total_mistakes = sum(int(v) for v in mistake_counts.values()) if mistake_counts else 0
 
     # small helper: list a few weak concepts ids (optional)
-    weak_ids = [str(cid) for cid, score in (weak_concepts or [])]
+    weak_ids = [cid for cid, score in (weak_concepts or [])]
+    label_map = get_concept_labels(weak_ids) if weak_ids else {}
+    weak_labels = [label_map.get(cid, str(cid)) for cid in weak_ids]
 
     if cold_start:
         # Cold start: keep it simple but consistent with your /ask RULES
@@ -280,7 +294,7 @@ def build_personalization_instruction(
     # ---------- weakness emphasis ----------
     if weak_concepts:
         weakness_note = (
-            f"Student has weaker topics (concept_ids): {', '.join(weak_ids[:3])}.\n"
+            f"Student has weaker topics: {', '.join(weak_labels[:3])}.\n"
             "- Add ONE clarifying phrase to prevent confusion.\n"
         )
     else:
