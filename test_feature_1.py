@@ -57,9 +57,9 @@ if __name__ == "__main__":
     print("=" * 60)
 
     test_ask_question(
-        "What is Artificial Bee Colony Algorithm?",
-        subject="ML",
-        student_id="S2",
+        "What is Proactive Personality",
+        subject="PM",
+        student_id="S3",
         debug=True,          # ✅ Python True
         expected_status=200
     )

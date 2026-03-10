@@ -22,7 +22,7 @@ from db import init_db
 init_db()
 
 # Concept catalog service
-from concept_service import get_or_create_concept_ids
+from concept_service import get_or_create_concept_ids, identify_concepts_from_vector
 
 from personalization import (
     get_or_create_student,
@@ -195,11 +195,20 @@ def ask_question():
 
             return jsonify(payload), 200
 
-        # 2) Personalization style (subject-level for this call)
-        mastery_map = subject_mastery_map
-        mistake_counts = subject_mistake_counts
+        # 2) Personalization style (Targeted Concept or Subject fallback)
+        # PRE-FLIGHT CONCEPT MATCHING: Identify exact concepts from question embedding
+        guessed_concept_ids = identify_concepts_from_vector(subject, query_vector, top_k=2)
 
-        cold_start = not mastery_map and not mistake_counts
+        if guessed_concept_ids:
+            # We found specific concepts! Load THEIR exact mastery instead of averages.
+            mastery_map = get_mastery_map(student_id, subject, guessed_concept_ids) or {}
+            mistake_counts = get_mistake_counts(student_id, subject, guessed_concept_ids) or {}
+            cold_start = False # because we are pulling known concepts even if they just default to 0.5
+        else:
+            # Fallback to subject-level averages
+            mastery_map = subject_mastery_map
+            mistake_counts = subject_mistake_counts
+            cold_start = not mastery_map and not mistake_counts
 
         if cold_start:
             avg_mastery = 0.5

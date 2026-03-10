@@ -109,3 +109,37 @@ def get_or_create_concept_ids(subject: str, concept_labels: List[str]) -> List[i
         return concept_ids
     finally:
         session.close()
+
+
+def identify_concepts_from_vector(subject: str, query_vector: np.ndarray, top_k: int = 2) -> List[int]:
+    """Find the most similar existing concept IDs for a given vector."""
+    subject_norm = _normalize_subject(subject)
+    session = get_session()
+    try:
+        existing = (
+            session.query(ConceptCatalog)
+            .filter(ConceptCatalog.subject == subject_norm)
+            .all()
+        )
+        
+        scored_concepts = []
+        for c in existing:
+            if not c.embedding_json:
+                continue
+            try:
+                emb = np.array(json.loads(c.embedding_json), dtype=np.float32)
+                sim = _cosine_sim(query_vector, emb)
+                scored_concepts.append((sim, c.concept_id))
+            except Exception:
+                pass
+                
+        # sort by similarity descending
+        scored_concepts.sort(key=lambda x: x[0], reverse=True)
+        
+        # take top_k that are above a reasonable threshold for matching sentences to concept labels
+        return [cid for sim, cid in scored_concepts if sim > 0.4][:top_k]
+    except Exception as e:
+        print(f"Error matching concepts from vector: {e}")
+        return []
+    finally:
+        session.close()
