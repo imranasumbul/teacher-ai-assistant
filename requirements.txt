@@ -1,0 +1,9 @@
+flask
+werkzeug
+pypdf
+sentence-transformers
+faiss-cpu
+numpy
+google-generativeai
+python-dotenv
+SQLAlchemy>=2.0

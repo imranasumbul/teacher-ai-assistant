@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Assignment Upload</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', sans-serif; background: #fffef0; min-height: 100vh; }
+    nav { background: #f1c40f; display: flex; align-items: center; justify-content: space-between; padding: 14px 32px; }
+    nav .brand { color: #333; font-size: 1.1rem; font-weight: 600; }
+    nav a { color: #333; text-decoration: none; border: 1.5px solid #333; border-radius: 6px; padding: 6px 18px; font-size: 0.82rem; font-weight: 600; }
+    nav a:hover { background: rgba(0,0,0,0.07); }
+    main { max-width: 700px; margin: 40px auto; padding: 0 20px; }
+    h1 { font-size: 1.8rem; font-weight: 700; color: #1a1a1a; margin-bottom: 24px; }
+    .card { background: #fff; border-radius: 14px; padding: 32px; box-shadow: 0 2px 12px rgba(0,0,0,0.07); }
+    label { display: block; font-size: 0.95rem; font-weight: 500; color: #333; margin-bottom: 8px; }
+    input[type="text"], input[type="file"] { width: 100%; padding: 10px 14px; border: 1.5px solid #ddd; border-radius: 8px; font-size: 0.95rem; outline: none; margin-bottom: 20px; }
+    input[type="text"]:focus { border-color: #f1c40f; }
+    .btn-upload { background: #f1c40f; color: #333; border: none; border-radius: 8px; padding: 12px 28px; font-size: 0.88rem; font-weight: 700; letter-spacing: 0.5px; cursor: pointer; }
+    .btn-upload:hover { background: #d4ac0d; }
+    .banner { margin-top: 20px; border-radius: 10px; padding: 14px 18px; font-size: 0.95rem; font-weight: 500; display: none; }
+    .banner.info { background: #00bcd4; color: #fff; }
+    .banner.success { background: #27ae60; color: #fff; }
+    .banner.error { background: #e74c3c; color: #fff; }
+  </style>
+</head>
+<body>
+<nav>
+  <span class="brand">Assignment Upload</span>
+  <a href="/">DASHBOARD</a>
+</nav>
+<main>
+  <h1>Upload Assignment</h1>
+  <div class="card">
+    <label>Student ID</label>
+    <input type="text" id="studentId" placeholder="e.g. S1" value="S1"/>
+    <label>Assignment File (.txt or .pdf)</label>
+    <input type="file" id="fileInput" accept=".pdf,.txt"/>
+    <button class="btn-upload" onclick="uploadAssignment()">UPLOAD ASSIGNMENT</button>
+    <div class="banner info" id="processingBanner">⏳ &nbsp;Uploading and processing...</div>
+    <div class="banner success" id="successBanner"></div>
+    <div class="banner error" id="errorBanner"></div>
+  </div>
+</main>
+<script>
+  async function uploadAssignment() {
+    const fileInput = document.getElementById('fileInput');
+    if (!fileInput.files.length) { show('error', '✖ Please select a file.'); return; }
+    const formData = new FormData();
+    formData.append('file', fileInput.files[0]);
+    hide('successBanner'); hide('errorBanner');
+    document.getElementById('processingBanner').style.display = 'block';
+    try {
+      const res = await fetch('/upload', { method: 'POST', body: formData });
+      const data = await res.json();
+      hide('processingBanner');
+      if (!res.ok || data.error) { showB('errorBanner', '✖ ' + (data.error || 'Upload failed')); }
+      else { showB('successBanner', '✅ ' + data.message); }
+    } catch(e) { hide('processingBanner'); showB('errorBanner', '✖ ' + e.message); }
+  }
+  function hide(id) { document.getElementById(id).style.display = 'none'; }
+  function showB(id, msg) { const el = document.getElementById(id); el.textContent = msg; el.style.display = 'block'; }
+</script>
+</body>
+</html>
