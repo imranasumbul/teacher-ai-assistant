@@ -23,12 +23,12 @@
             <form id="uploadForm" onsubmit="uploadFile(event)">
                 <div class="mb-3">
                     <label class="form-label">Upload Notes / Syllabus (.txt or .pdf)</label>
-                    <input type="file" id="fileInput" class="form-control" accept=".pdf,.txt" required>
+                    <input type="file" id="fileInput" name="file" class="form-control" accept=".pdf,.txt" required>
                 </div>
 
                 <div class="mb-3">
-                    <label class="form-label">Evaluation Rules</label>
-                    <textarea class="form-control" rows="4"></textarea>
+                    <label class="form-label">Upload Evaluation Rules / Rubric (.txt or .pdf)</label>
+                    <input type="file" id="rulesInput" name="evaluation_rules_file" class="form-control" accept=".pdf,.txt" required>
                 </div>
 
                 <button type="submit" class="btn btn-blue">Upload File</button>
@@ -41,6 +41,7 @@
         async function uploadFile(event) {
             event.preventDefault();
 
+            const form = document.getElementById('uploadForm');
             const fileInput = document.getElementById('fileInput');
             const resultDiv = document.getElementById('result');
 
@@ -51,8 +52,8 @@
                 return;
             }
 
-            const formData = new FormData();
-            formData.append('file', fileInput.files[0]);
+            const formData = new FormData(form);
+            // formData.append('file', fileInput.files[0]); // Automatically grabbed via new FormData(form), just need name="file" on input
 
             // Show loading message
             resultDiv.className = 'mt-3 p-3 rounded bg-info text-white';
@@ -60,7 +61,7 @@
             resultDiv.style.display = 'block';
 
             try {
-                const response = await fetch('/upload', {
+                const response = await fetch('/upload_notes', {
                     method: 'POST',
                     body: formData
                 });

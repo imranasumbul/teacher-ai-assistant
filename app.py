@@ -34,6 +34,9 @@ from personalization import (
     build_personalization_instruction,
 )
 
+# Assignment checker
+from assignment_checker import evaluate_assignment
+
 app = Flask(__name__)
 
 # =========================
@@ -90,14 +93,72 @@ def teacher_notes():
     return render_template("teacher_notes.html")
 
 # =========================
-# Upload Teacher Notes
+# Upload Teacher Notes with Evaluation Rules
 # =========================
-@app.route("/upload", methods=["POST"])
-def upload_file():
+@app.route("/upload_notes", methods=["POST"])
+def upload_notes():
+    if "file" not in request.files or "evaluation_rules_file" not in request.files:
+        return jsonify({"error": "Missing notes or rubric file"}), 400
+
+    file = request.files["file"]
+    rules_file_upload = request.files["evaluation_rules_file"]
+
+    if file.filename == "" or rules_file_upload.filename == "":
+        return jsonify({"error": "No file selected for notes or rubric"}), 400
+
+    if not allowed_file(file.filename) or not allowed_file(rules_file_upload.filename):
+        return jsonify({"error": "Only PDF and txt allowed for both files"}), 400
+
+    filename = secure_filename(file.filename)
+    filepath = os.path.join(app.config["UPLOAD_FOLDER"], filename)
+    file.save(filepath)
+
+    rules_filename = secure_filename(rules_file_upload.filename)
+    rules_filepath = os.path.join(app.config["UPLOAD_FOLDER"], rules_filename)
+    rules_file_upload.save(rules_filepath)
+
+    print(f"✅ Uploaded teacher notes: {filename} and rubric: {rules_filename}")
+
+    try:
+        # Process and extract teacher notes
+        extracted_text = extract_text(filepath)
+        chunks = chunk_text(extracted_text)
+        embedding_pairs = generate_embeddings(chunks)
+        save_to_vector_store(embedding_pairs, filename)
+        
+        # Process and extract evaluation rules
+        evaluation_rules = extract_text(rules_filepath)
+
+        # Store evaluation rules as a text file for the assignment checker
+        rules_dest_file = os.path.join(app.config["UPLOAD_FOLDER"], "evaluation_rules.txt")
+        with open(rules_dest_file, "w", encoding="utf-8") as f:
+            f.write(evaluation_rules)
+
+        # Clean up the original uploaded rubric file since we extracted its text
+        if os.path.exists(rules_filepath):
+            os.remove(rules_filepath)
+
+        return jsonify({
+            "message": "Teacher notes and evaluation rules uploaded successfully",
+            "chunks": len(chunks),
+            "rules_length": len(evaluation_rules)
+        }), 200
+
+    except Exception as e:
+        print("❌ Upload processing error:", e)
+        return jsonify({"error": str(e)}), 500
+
+# =========================
+# Evaluate Assignment
+# =========================
+@app.route("/evaluate_assignment", methods=["POST"])
+def evaluate_assignment_route():
     if "file" not in request.files:
         return jsonify({"error": "No file part"}), 400
 
     file = request.files["file"]
+    topic = request.form.get("topic", "").strip()
+    subject = request.form.get("subject", "general").strip()
 
     if file.filename == "":
         return jsonify({"error": "No file selected"}), 400
@@ -105,25 +166,37 @@ def upload_file():
     if not allowed_file(file.filename):
         return jsonify({"error": "Only PDF and txt allowed"}), 400
 
+    if not topic:
+        return jsonify({"error": "Topic is required"}), 400
+
     filename = secure_filename(file.filename)
     filepath = os.path.join(app.config["UPLOAD_FOLDER"], filename)
     file.save(filepath)
 
-    print(f"✅ Uploaded: {filename}")
+    print(f"✅ Uploaded assignment: {filename}")
 
     try:
-        extracted_text = extract_text(filepath)
-        chunks = chunk_text(extracted_text)
-        embedding_pairs = generate_embeddings(chunks)
-        save_to_vector_store(embedding_pairs, filename)
+        # Extract student answer text
+        student_answer_text = extract_text(filepath)
 
-        return jsonify({
-            "message": "File processed successfully",
-            "chunks": len(chunks)
-        }), 200
+        # Load evaluation rules
+        rules_file = os.path.join(app.config["UPLOAD_FOLDER"], "evaluation_rules.txt")
+        if not os.path.exists(rules_file):
+            return jsonify({"error": "Evaluation rules not found. Please upload teacher notes first."}), 400
+
+        with open(rules_file, "r", encoding="utf-8") as f:
+            evaluation_rules_text = f.read()
+
+        # Evaluate assignment
+        result = evaluate_assignment(student_answer_text, topic, subject, evaluation_rules_text)
+
+        if "error" in result:
+            return jsonify(result), 400
+
+        return jsonify(result), 200
 
     except Exception as e:
-        print("❌ Upload processing error:", e)
+        print("❌ Evaluation error:", e)
         return jsonify({"error": str(e)}), 500
 
 # =========================
