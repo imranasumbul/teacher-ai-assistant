@@ -25,10 +25,13 @@
     .banner.processing { background: #00bcd4; color: #fff; }
     .banner.success { background: #27ae60; color: #fff; }
     .banner.error { background: #e74c3c; color: #fff; }
+    .container{
+        max-width: 800px;
+        margin-inline: auto;
+    }
     pre { background: #fff; border-radius: 6px; padding: 12px; font-size: 0.85rem; margin-top: 10px; white-space: pre-wrap; word-break: break-all; }
   </style>
 </head>
-<<<<<<< HEAD
 
 <body class="bg-page-blue">
 
@@ -121,52 +124,5 @@
             }
         }
     </script>
-=======
-<body>
-<nav>
-  <span class="brand">Teacher Notes Upload</span>
-  <a href="/">DASHBOARD</a>
-</nav>
-<main>
-  <h1>Upload Teacher Notes</h1>
-  <div class="card">
-    <label>Upload Notes / Syllabus (.txt or .pdf)</label>
-    <input type="file" id="fileInput" accept=".pdf,.txt"/>
-    <label>Evaluation Rules</label>
-    <textarea id="evalRules" placeholder="Enter evaluation rules or instructions..."></textarea>
-    <button class="btn-upload" id="uploadBtn" onclick="uploadFile()">UPLOAD FILE</button>
-    <div class="banner processing" id="processingBanner">⏳ &nbsp;Uploading and processing...</div>
-    <div class="banner success" id="successBanner"></div>
-    <div class="banner error" id="errorBanner"></div>
-  </div>
-</main>
-<script>
-  async function uploadFile() {
-    const fileInput = document.getElementById('fileInput');
-    if (!fileInput.files.length) { showBanner('error', '✖ Please select a file first.'); return; }
-    const file = fileInput.files[0];
-    const formData = new FormData();
-    formData.append('file', file);
-    hide('successBanner'); hide('errorBanner');
-    show('processingBanner', 'processing');
-    document.getElementById('uploadBtn').disabled = true;
-    try {
-      const res = await fetch('/upload', { method: 'POST', body: formData });
-      const data = await res.json();
-      hide('processingBanner');
-      if (!res.ok || data.error) { showBanner('error', '✖ Error!\n' + JSON.stringify(data, null, 2)); }
-      else { showBanner('success', '✅ ' + data.message + ' (' + data.chunks + ' chunks processed)'); }
-    } catch(e) { hide('processingBanner'); showBanner('error', '✖ Connection error: ' + e.message); }
-    finally { document.getElementById('uploadBtn').disabled = false; }
-  }
-  function show(id, cls) { const el = document.getElementById(id); el.style.display = 'block'; }
-  function hide(id) { document.getElementById(id).style.display = 'none'; }
-  function showBanner(type, msg) {
-    const el = document.getElementById(type === 'error' ? 'errorBanner' : 'successBanner');
-    el.innerHTML = msg.includes('\n') ? msg.split('\n')[0] + '<pre>' + msg.split('\n').slice(1).join('\n') + '</pre>' : msg;
-    el.style.display = 'block';
-  }
-</script>
->>>>>>> 6862df8bd8a0587d2e1c41f7c497e2079605eee8
 </body>
 </html>
