@@ -54,7 +54,13 @@ class VectorStore:
         
         # Extract embeddings and texts
         embeddings = []
-        for embedding, chunk_text in embedding_pairs:
+        for item in embedding_pairs:
+            # Defensive unpack: item must be a (embedding, chunk_text) tuple
+            if isinstance(item, (list, tuple)) and len(item) == 2:
+                embedding, chunk_text = item
+            else:
+                print(f"⚠️  Skipping malformed embedding item: {type(item)}")
+                continue
             embeddings.append(embedding)
             self.metadata.append({
                 "chunk_text": chunk_text,
