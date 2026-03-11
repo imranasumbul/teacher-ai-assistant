@@ -28,6 +28,100 @@
     pre { background: #fff; border-radius: 6px; padding: 12px; font-size: 0.85rem; margin-top: 10px; white-space: pre-wrap; word-break: break-all; }
   </style>
 </head>
+<<<<<<< HEAD
+
+<body class="bg-page-blue">
+
+    <nav class="navbar navbar-dark bg-navbar-blue">
+        <div class="container">
+            <span class="navbar-brand">Teacher Panel</span>
+            <a href="/" class="btn btn-light btn-sm">Dashboard</a>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <h3 class="page-title mb-4">Upload Teacher Notes</h3>
+
+        <div class="card p-4">
+            <form id="uploadForm" onsubmit="uploadFile(event)">
+                <div class="mb-3">
+                    <label class="form-label">Upload Notes / Syllabus (.txt or .pdf)</label>
+                    <input type="file" id="fileInput" name="file" class="form-control" accept=".pdf,.txt" required>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Upload Evaluation Rules / Rubric (.txt or .pdf)</label>
+                    <input type="file" id="rulesInput" name="evaluation_rules_file" class="form-control" accept=".pdf,.txt" required>
+                </div>
+
+                <button type="submit" class="btn btn-blue">Upload File</button>
+            </form>
+            <div id="result" class="mt-3 p-3 rounded" style="display: none;"></div>
+        </div>
+    </div>
+
+    <script>
+        async function uploadFile(event) {
+            event.preventDefault();
+
+            const form = document.getElementById('uploadForm');
+            const fileInput = document.getElementById('fileInput');
+            const resultDiv = document.getElementById('result');
+
+            if (!fileInput.files.length) {
+                resultDiv.className = 'mt-3 p-3 rounded bg-danger text-white';
+                resultDiv.textContent = 'Please select a file first';
+                resultDiv.style.display = 'block';
+                return;
+            }
+
+            const formData = new FormData(form);
+            // formData.append('file', fileInput.files[0]); // Automatically grabbed via new FormData(form), just need name="file" on input
+
+            // Show loading message
+            resultDiv.className = 'mt-3 p-3 rounded bg-info text-white';
+            resultDiv.innerHTML = '⏳ Uploading and processing...';
+            resultDiv.style.display = 'block';
+
+            try {
+                const response = await fetch('/upload_notes', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    resultDiv.className = 'mt-3 p-3 rounded bg-success text-white';
+                    resultDiv.innerHTML = `
+                        <strong>✅ Success!</strong><br><br>
+                        <strong>📄 Response Details:</strong><br>
+                        <pre class="bg-light text-dark p-2 rounded mt-2" style="overflow-x: auto;">${JSON.stringify(data, null, 2)}</pre>
+                    `;
+                } else {
+                    resultDiv.className = 'mt-3 p-3 rounded bg-danger text-white';
+                    resultDiv.innerHTML = `
+                        <strong>❌ Error!</strong><br><br>
+                        <pre class="bg-light text-dark p-2 rounded mt-2">${JSON.stringify(data, null, 2)}</pre>
+                    `;
+                }
+
+                resultDiv.style.display = 'block';
+            } catch (error) {
+                resultDiv.className = 'mt-3 p-3 rounded bg-danger text-white';
+                resultDiv.innerHTML = `
+                    <strong>❌ Connection Error!</strong><br><br>
+                    Error: ${error.message}<br><br>
+                    <strong>Possible causes:</strong><br>
+                    • Server is not running (run: python app.py)<br>
+                    • Server crashed (check terminal for errors)<br><br>
+                    <strong>Check your terminal for error messages!</strong>
+                `;
+                resultDiv.style.display = 'block';
+            }
+        }
+    </script>
+=======
 <body>
 <nav>
   <span class="brand">Teacher Notes Upload</span>
@@ -73,5 +167,6 @@
     el.style.display = 'block';
   }
 </script>
+>>>>>>> 6862df8bd8a0587d2e1c41f7c497e2079605eee8
 </body>
 </html>
