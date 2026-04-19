@@ -4,6 +4,6 @@ pypdf
 sentence-transformers
 faiss-cpu
 numpy
-google-generativeai
+google-genai
 python-dotenv
 SQLAlchemy>=2.0
