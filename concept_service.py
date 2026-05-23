@@ -10,8 +10,8 @@ import numpy as np
 from db import get_session, ConceptCatalog
 from embedder import generate_embeddings
 
-MAX_CONCEPTS = 5
-SIM_THRESHOLD = 0.86  # raise => merges more, lower => creates more
+MAX_CONCEPTS = 20
+SIM_THRESHOLD = 0.92  # raise => merges more strictly, lower => creates fewer distinct concepts
 
 
 def _normalize_label(label: str) -> str:

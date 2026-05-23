@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <title>Assignment Upload</title>
+</head>
+
+<body style="font-family: Arial; background:#eef3fb; padding:40px;">
+
+    <h2>Upload Assignment + Rubric</h2>
+
+    <form id="assignmentForm" onsubmit="uploadAssignment(event)">
+        <label>Subject</label>
+        <select name="subject" required>
+            <option value="ML">Machine Learning</option>
+            <option value="DBMS">DBMS</option>
+            <option value="OS">Operating Systems</option>
+        </select>
+        <label>Upload Assignment PDF:</label><br>
+        <input type="file" name="assignment_file" required><br><br>
+
+        <label>Upload Rubric PDF/TXT:</label><br>
+        <input type="file" name="rubric_file" required><br><br>
+
+        <button type="submit">Publish Assignment</button>
+
+    </form>
+
+    <div id="result" style="margin-top:20px;"></div>
+
+    <script>
+        async function uploadAssignment(event) {
+            event.preventDefault();
+
+            const form = document.getElementById("assignmentForm");
+            const resultDiv = document.getElementById("result");
+
+            const formData = new FormData(form);
+
+            resultDiv.innerHTML = "⏳ Uploading...";
+
+            try {
+                const res = await fetch("/upload_assignment_pdf", {
+                    method: "POST",
+                    body: formData
+                });
+
+                const data = await res.json();
+
+                if (res.ok) {
+                    resultDiv.innerHTML = `
+                <b>✅ Published!</b><br><br>
+                <b>Questions:</b><br>
+                <pre>${JSON.stringify(data.questions, null, 2)}</pre>
+            `;
+                } else {
+                    resultDiv.innerHTML = `<b>❌ Error:</b> ${JSON.stringify(data)}`;
+                }
+
+            } catch (err) {
+                resultDiv.innerHTML = "❌ Server error";
+            }
+        }
+    </script>
+
+</body>
+
+</html>

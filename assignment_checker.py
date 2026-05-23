@@ -7,6 +7,7 @@ import os
 import json
 import re
 from google import genai
+from google.genai import types
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -33,85 +34,109 @@ def parse_json_from_text(text: str):
     except Exception:
         return None
 
-def evaluate_assignment(student_answer_text, topic, subject, evaluation_rules_text):
+def evaluate_single_answer(question_text, student_answer_text, rubric_text):
     """
-    Evaluate student assignment using RAG and LLM
-    
-    Args:
-        student_answer_text (str): Extracted text from student's assignment
-        topic (str): Assignment topic for context retrieval
-        subject (str): Subject area
-        evaluation_rules_text (str): Teacher's evaluation rules/rubric
-        
-    Returns:
-        dict: Evaluation result with marks, feedback, etc.
+    Evaluate a single student answer using LLM
     """
     if not gemini_client:
         return {"error": "Gemini API not configured"}
     
-    if not student_answer_text.strip():
-        return {"error": "No student answer text provided"}
-    
-    if not topic.strip():
-        return {"error": "No topic provided"}
-    
-    # Generate embedding for topic to retrieve relevant context
-    print(f"\n🔍 Retrieving context for topic: {topic}")
-    embedding_pairs = generate_embeddings([topic])
-    if not embedding_pairs:
-        return {"error": "Could not generate embedding for topic"}
-    
-    query_vector = embedding_pairs[0][0]
-    store = get_vector_store()
-    results = store.search(query_vector, k=5) if store else []
-    
-    retrieved_texts = [r.get("chunk_text", "") for r in results]
-    context_str = "\n\n".join([t for t in retrieved_texts if t]).strip()
-    
-    if not context_str:
-        return {"error": "No relevant context found in teacher notes"}
-    
-    print(f"✅ Retrieved {len(retrieved_texts)} relevant chunks")
-    
-    # Build evaluation prompt
     prompt = f"""
-You are a teacher evaluating a student's assignment submission.
+You are an AI assignment evaluator.
 
-Your task is to provide fair, explainable feedback based on:
-1. The evaluation rules/rubric provided by the teacher
-2. The reference content from teacher notes
-3. The student's submitted answer
+Goal:
+Evaluate a student's answer precisely and generate structured feedback for both backend processing and student report generation.
 
-IMPORTANT RULES:
-- Only evaluate based on content covered in the reference material
-- If the answer goes off-syllabus or uses concepts not in the reference, flag it and deduct marks accordingly
-- Provide specific, actionable feedback
-- Be constructive and encouraging
+----------------------------------------
 
-Return ONLY valid JSON in this exact format:
+INPUT:
+- Question
+- Rubric (includes marking scheme and maximum marks)
+- Student Answer
+
+----------------------------------------
+
+TASK:
+
+For EACH question:
+
+1. Evaluate strictly based on the rubric.
+2. Assign score based ONLY on the rubric.
+   - Do NOT assume total marks.
+   - Extract maximum marks from rubric and score accordingly.
+
+3. Extract ALL core learning concepts strictly from the QUESTION text:
+   - Extract ONLY the core subjects being DIRECTLY interrogated/tested by the question.
+   - DO NOT extract vague or contextual terms (e.g., "model performance", "accuracy", "data", "advantage").
+   - Concepts MUST be highly specific to the subject domain (e.g., ML concepts like "bias", "variance", "decision trees").
+   - Concepts MUST come ONLY from words/phrases explicitly present in the question.
+   - Do NOT infer related concepts, and NEVER use the student answer for concept extraction.
+
+4. Identify mistake types from the allowed list.
+
+5. Generate clear feedback:
+   - Correct Points → what student did right
+   - Missing Points → what student missed or got wrong
+   - Improvements → how to improve
+
+----------------------------------------
+
+ALLOWED MISTAKE TYPES (STRICT):
+- concept_unclear
+- incomplete_answer
+- wrong_definition
+- out_of_syllabus
+
+----------------------------------------
+
+STRICT OUTPUT FORMAT (JSON ONLY):
+
 {{
-  "marks": <number out of 10>,
-  "correct_points": ["Specific correct point 1", "Specific correct point 2"],
-  "missing_points": ["Missing concept 1", "Missing concept 2"],
-  "improvement_suggestions": ["Suggestion 1", "Suggestion 2"],
-  "off_syllabus": <boolean - true if answer uses concepts not in reference material>
+  "score": <number>,
+  "max_score": <number>,
+  "concepts": ["<concept1>", "<concept2>"],
+  "mistakes": ["<mistake_type1>", "<mistake_type2>"],
+  "correct_points": ["point1", "point2"],
+  "missing_points": ["point1", "point2"],
+  "improvements": ["suggestion1", "suggestion2"]
 }}
 
-EVALUATION RULES/RUBRIC:
-{evaluation_rules_text}
+----------------------------------------
 
-REFERENCE CONTENT (Teacher Notes):
-{context_str}
+RULES:
+
+- Be VERY precise. No long paragraphs.
+- Each point should be short (1 line).
+- Do NOT repeat same idea in multiple sections.
+- Do NOT invent new mistake types.
+- Always return valid JSON.
+- If something is missing, return empty list [].
+- Score must align with rubric marking distribution.
+- STRICT CONCEPT EXTRACTION: Extract ONLY the direct subjects being tested. DO NOT extract contextual or vague terms like "model performance" or "advantage".
+
+----------------------------------------
+
+IMPORTANT:
+
+- Output must be clean and structured so it can be directly shown in UI and converted into a student report (PDF).
+- Do NOT include any text outside JSON.
+
+QUESTION:
+{question_text}
+
+RUBRIC:
+{rubric_text}
 
 STUDENT ANSWER:
 {student_answer_text}
 """.strip()
-    
-    print("\n🤖 Calling Gemini for evaluation...")
+
+    print("\n🤖 Calling Gemini for question evaluation...")
     try:
         resp = gemini_client.models.generate_content(
             model="gemini-2.5-flash",
             contents=prompt,
+            config=types.GenerateContentConfig(temperature=0.0)
         )
         
         parsed = parse_json_from_text(resp.text)
@@ -120,30 +145,139 @@ STUDENT ANSWER:
             print("❌ Failed to parse LLM response")
             return {"error": "Failed to parse evaluation response"}
         
-        # System-level enforcement
-        if parsed.get("off_syllabus", False):
-            # Deduct marks for off-syllabus content
-            original_marks = parsed.get("marks", 0)
-            parsed["marks"] = max(0, original_marks - 3)  # Deduct 3 marks for off-syllabus
-            parsed["missing_points"].append("Answer contains concepts not covered in class notes")
-            parsed["improvement_suggestions"].append("Focus on concepts taught in class")
+        # Ensure score is reasonable (fallback to 0 if negative, don't clamp max since max_score varies)
+        parsed["score"] = max(0, parsed.get("score", 0))
         
-        # Ensure marks are reasonable
-        parsed["marks"] = max(0, min(10, parsed.get("marks", 0)))
-        
-        print(f"✅ Evaluation complete: {parsed.get('marks')}/10 marks")
+        print(f"✅ Evaluation complete: {parsed.get('score')}/{parsed.get('max_score')} score")
         return parsed
         
     except Exception as e:
         print(f"❌ Error during evaluation: {e}")
         return {"error": f"Evaluation failed: {str(e)}"}
 
+def evaluate_assignment_batch(assignment_data: dict):
+    """
+    Evaluate multiple student answers in a single LLM call using RAG context.
+    """
+    if not gemini_client:
+        return {"error": "Gemini API not configured"}
+    
+    prompt = f"""
+You are an AI assignment evaluator.
+
+Goal:
+Evaluate a student's answers for an entire assignment and generate structured feedback for both backend processing and student report generation.
+
+----------------------------------------
+
+INPUT JSON:
+{json.dumps(assignment_data, indent=2)}
+
+----------------------------------------
+
+TASK:
+
+For EACH question in the input:
+
+1. Use the provided CONTEXT as reference material.
+   - Context contains relevant teacher notes retrieved via RAG.
+   - Use it to verify correctness of the student's answer.
+   - Do NOT ignore the context.
+
+2. Evaluate the answer strictly based on:
+   - rubric (PRIMARY)
+   - context (SUPPORTING)
+
+3. Assign score based ONLY on the rubric.
+   - Do NOT assume total marks.
+   - Extract maximum marks from rubric and score accordingly.
+
+4. Extract ALL core learning concepts strictly from the QUESTION text:
+   - Extract ONLY the core subjects being DIRECTLY interrogated/tested by the question.
+   - DO NOT extract vague or contextual terms (e.g., "model performance", "accuracy", "data", "advantage").
+   - Concepts MUST be highly specific to the subject domain (e.g., ML concepts like "bias", "variance", "decision trees").
+   - Concepts MUST come ONLY from words/phrases explicitly present in the question.
+   - Do NOT infer related concepts, and NEVER use the student answer for concept extraction.
+
+5. Identify mistake types from the allowed list.
+
+6. Generate clear feedback:
+   - Correct Points → what student did right
+   - Missing Points → what student missed or got wrong
+   - Improvements → how to improve
+
+----------------------------------------
+
+ALLOWED MISTAKE TYPES (STRICT):
+- concept_unclear
+- incomplete_answer
+- wrong_definition
+- out_of_syllabus
+
+----------------------------------------
+
+OUTPUT FORMAT (STRICT JSON ONLY):
+
+{{
+  "results": [
+    {{
+      "id": <question_id_from_input>,
+      "score": <number>,
+      "max_score": <number>,
+      "concepts": ["<concept1>", "<concept2>"],
+      "mistakes": ["<mistake_type1>", "<mistake_type2>"],
+      "correct_points": ["point1", "point2"],
+      "missing_points": ["point1", "point2"],
+      "improvements": ["suggestion1", "suggestion2"]
+    }}
+  ]
+}}
+
+----------------------------------------
+
+RULES:
+
+- Process EACH question independently.
+- Do NOT mix answers between questions.
+- Context is IMPORTANT — use it to judge correctness.
+- Do NOT rely only on student answer.
+- Do NOT hallucinate beyond context + rubric.
+- Be VERY precise. No long paragraphs.
+- Each feedback point should be short (1 line).
+- Always return valid JSON.
+- No text outside JSON.
+- STRICT CONCEPT EXTRACTION: Extract ONLY the direct subjects being tested. DO NOT extract contextual or vague terms like "model performance" or "advantage".
+""".strip()
+
+    print("\n🤖 Calling Gemini for batch assignment evaluation...")
+    try:
+        resp = gemini_client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=prompt,
+            config=types.GenerateContentConfig(temperature=0.0)
+        )
+        
+        parsed = parse_json_from_text(resp.text)
+        
+        if not parsed or "results" not in parsed:
+            print("❌ Failed to parse batch LLM response")
+            return {"error": "Failed to parse batch evaluation response"}
+        
+        # Ensure scores are reasonable
+        for res in parsed["results"]:
+            res["score"] = max(0, res.get("score", 0))
+        
+        print(f"✅ Batch Evaluation complete: {len(parsed['results'])} results")
+        return parsed
+        
+    except Exception as e:
+        print(f"❌ Error during batch evaluation: {e}")
+        return {"error": f"Batch evaluation failed: {str(e)}"}
+
 if __name__ == "__main__":
     # Test the evaluator
-    test_answer = "Machine learning is a subset of AI that uses algorithms to learn from data."
-    test_topic = "Machine Learning"
-    test_subject = "CS"
-    test_rules = "Award marks for correct definitions, examples, and explanations. Deduct for incorrect information."
-    
-    result = evaluate_assignment(test_answer, test_topic, test_subject, test_rules)
-    print("Test Result:", result)
+    q = "Explain overfitting."
+    ans = "Overfitting is when a model learns the training data too well."
+    rubric = "10 marks for correct definition."
+    result = evaluate_single_answer(q, ans, rubric)
+    print("Test Result:", result)

@@ -70,6 +70,19 @@ class Student(Base):
     )
 
 
+class Teacher(Base):
+    __tablename__ = "teachers"
+
+    teacher_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    name: Mapped[Optional[str]] = mapped_column(String(120), nullable=True)
+    subject: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+    assignments: Mapped[list["Assignment"]] = relationship(
+        back_populates="teacher", cascade="all, delete-orphan"
+    )
+
+
 # =========================================================
 #                CONCEPT CATALOG (CANONICAL)
 # =========================================================
@@ -86,6 +99,8 @@ class ConceptCatalog(Base):
     label = mapped_column(String(128), nullable=False)
     embedding_json = mapped_column(Text, nullable=True)
     created_at = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
 # =========================================================
 #                 STUDENT LEARNING STATE
 # =========================================================
@@ -187,8 +202,50 @@ class Interaction(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
     student: Mapped["Student"] = relationship(back_populates="interactions")
+# =========================================================
+#             ASSIGNMENT SYSTEM (SIMPLIFIED)
+# =========================================================
+
+class Assignment(Base):
+    __tablename__ = "assignments"
+
+    assignment_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    subject: Mapped[str] = mapped_column(String(64), nullable=False)
+    title: Mapped[str] = mapped_column(String(200), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    
+    teacher_id: Mapped[Optional[str]] = mapped_column(
+        String(64),
+        ForeignKey("teachers.teacher_id", ondelete="SET NULL"),
+        nullable=True
+    )
+
+    teacher: Mapped[Optional["Teacher"]] = relationship(back_populates="assignments")
+
+    questions: Mapped[list["Question"]] = relationship(
+        back_populates="assignment", cascade="all, delete-orphan"
+    )
 
 
+class Question(Base):
+    __tablename__ = "questions"
+
+    question_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+
+    assignment_id: Mapped[int] = mapped_column(
+        Integer,
+        ForeignKey("assignments.assignment_id", ondelete="CASCADE"),
+        nullable=False
+    )
+
+    subject: Mapped[str] = mapped_column(String(64), nullable=False)
+    question_text: Mapped[str] = mapped_column(Text, nullable=False)
+    rubric_text: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    concept_ids_json: Mapped[str] = mapped_column(Text, default="[]")
+
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+    assignment: Mapped["Assignment"] = relationship(back_populates="questions")
 # =========================================================
 #                  ENGINE / SESSION
 # =========================================================

@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Assignment Upload</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/static.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+</head>
+
+<body class="bg-page-yellow">
+
+    <nav class="navbar navbar-dark bg-navbar-yellow">
+        <div class="container">
+            <span class="navbar-brand text-dark">Assignment Submission</span>
+            <a href="/" class="btn btn-dark btn-sm">Dashboard</a>
+        </div>
+    </nav>
+
+    <div class="container">
+        <h3 class="page-title">Upload Assignment</h3>
+
+        <div class="card p-4">
+            <form id="assignmentForm" onsubmit="submitAssignment(event)">
+                <div class="mb-3">
+                    <label class="form-label">Select Assignment</label>
+                    <select class="form-select" name="assignment_id" required>
+                        <option value="" disabled selected>-- Choose an assignment --</option>
+                        {% for a in assignments %}
+                        <option value="{{ a.assignment_id }}">{{ a.title }} ({{ a.subject }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Upload Answer PDF (A1: A2: format)</label>
+                    <input type="file" class="form-control" name="file" accept=".pdf,.txt" required>
+                </div>
+
+                <button type="submit" class="btn btn-yellow">Evaluate Answers</button>
+            </form>
+
+            <!-- Results Section -->
+            <div id="results" class="mt-4" style="display: none;">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h4 class="mb-0">Evaluation Results</h4>
+                    <button id="downloadPdfBtn" class="btn btn-danger btn-sm" onclick="downloadPDF()"
+                        style="display: none;">📥 Download PDF</button>
+                </div>
+                <div id="evaluationSummary" class="alert alert-info fs-5" style="display: none;"></div>
+                <div id="evaluationContent"></div>
+            </div>
+
+            <!-- Hidden PDF Template -->
+            <div id="pdfTemplate" style="
+    display: none;
+    font-family: 'Times New Roman', serif;
+    color: #000;
+    padding: 60px;
+    line-height: 1.8;
+    width: 100%;
+    background: white;
+">
+                <div style="text-align:center; margin-bottom:20px;">
+    <h2 style="margin:0; font-size:28px; font-weight:bold;">
+        Machine Learning Assignment Report
+    </h2>
+    <p style="margin: 5px 0 0; font-size: 14px; color: #555;">Generated on: <span id="pdfDate"></span></p>
+</div>
+
+                <table style="width: 100%; border-collapse: collapse; margin-bottom: 30px; font-size: 14px;">
+                    <tr>
+                        <td style="padding: 8px; border: 1px solid #ddd;"><strong>Assignment:</strong> <span
+                                id="pdfAssignmentName"></span></td>
+                        <td style="padding: 8px; border: 1px solid #ddd;"><strong>Course:</strong> <span
+                                id="pdfCourseName"></span></td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 8px; border: 1px solid #ddd;"><strong>Student Name:</strong> [Pending Login]
+                        </td>
+                        <td style="padding: 8px; border: 1px solid #ddd;"><strong>Instructor:</strong> [Pending Login]
+                        </td>
+                    </tr>
+                </table>
+
+                <div
+                    style="background-color: #f8f9fa; border: 1px solid #dee2e6; padding: 20px; margin-bottom: 30px; text-align: center; border-radius: 4px;">
+                    <h3 style="margin: 0; font-size: 22px; color: #2c3e50;" id="pdfTotalScore"></h3>
+                </div>
+
+                <div id="pdfQuestionsContent"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function submitAssignment(event) {
+            event.preventDefault();
+
+            const form = document.getElementById('assignmentForm');
+            const formData = new FormData(form);
+            const resultsDiv = document.getElementById('results');
+            const evalContent = document.getElementById('evaluationContent');
+
+            // Show loading message
+            resultsDiv.style.display = 'block';
+            resultsDiv.className = 'mt-4 p-3 rounded bg-info text-dark';
+            evalContent.innerHTML = '<strong>⏳ Evaluating assignment question by question... Please wait...</strong>';
+            document.getElementById('downloadPdfBtn').style.display = 'none';
+            document.getElementById('evaluationSummary').style.display = 'none';
+
+            try {
+                const response = await fetch('/evaluate_assignment', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    resultsDiv.className = 'mt-4';
+
+                    let htmlContent = '';
+                    let pdfContent = '';
+                    let totalScore = 0;
+                    let totalMaxScore = 0;
+
+                    data.forEach((item, index) => {
+                        if (item.error) {
+                            htmlContent += `
+                                <div class="card mb-3 border-danger">
+                                    <div class="card-header bg-danger text-white">Question ${index + 1}</div>
+                                    <div class="card-body">
+                                        <p><strong>Q:</strong> ${item.question}</p>
+                                        <p><strong>A:</strong> ${item.answer}</p>
+                                        <p class="text-danger"><strong>Error:</strong> ${item.error}</p>
+                                    </div>
+                                </div>
+                            `;
+                            pdfContent += `
+                                <div style="margin-bottom: 30px; padding: 15px; border: 1px solid #dc3545; border-radius: 4px; page-break-inside: avoid;">
+                                    <h4 style="margin-top: 0; color: #dc3545; border-bottom: 1px solid #dc3545; padding-bottom: 5px;">Question ${index + 1}</h4>
+                                    <p style="margin: 10px 0;"><strong>Q:</strong> ${item.question}</p>
+                                    <p style="margin: 10px 0;"><strong>A:</strong> ${item.answer}</p>
+                                    <p style="color: #dc3545; margin: 10px 0;"><strong>Error:</strong> ${item.error}</p>
+                                </div>
+                            `;
+                            return;
+                        }
+
+                        totalScore += item.score || 0;
+                        totalMaxScore += item.max_score || 10;
+
+                        htmlContent += `
+                            <div class="card mb-4 border-success">
+                                <div class="card-header bg-success text-white d-flex justify-content-between">
+                                    <span>Question ${index + 1}</span>
+                                    <span>Score: <strong>${item.score}/${item.max_score || 10}</strong></span>
+                                </div>
+                                <div class="card-body">
+                                    <p class="mb-2"><strong>Q:</strong> ${item.question}</p>
+                                    <p class="mb-3 text-muted"><strong>Your Answer:</strong> ${item.answer || '<em>No answer provided</em>'}</p>
+                                    
+                                    <div class="mb-3">
+                                        ${(item.concepts || []).map(c => `<span class="badge bg-info text-dark me-1">${c}</span>`).join('')}
+                                        ${(item.mistakes || []).map(m => `<span class="badge bg-danger me-1">${m}</span>`).join('')}
+                                    </div>
+                                    
+                                    <div class="row">
+                                        <div class="col-md-6 mb-3">
+                                            <h6 class="text-success border-bottom pb-1">✅ Correct Points</h6>
+                                            <ul class="mb-0 small">
+                                                ${(item.feedback.correct_points || []).map(p => `<li>${p}</li>`).join('') || '<li>None identified</li>'}
+                                            </ul>
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <h6 class="text-warning border-bottom pb-1">⚠️ Missing Points</h6>
+                                            <ul class="mb-0 small">
+                                                ${(item.feedback.missing_points || []).map(p => `<li>${p}</li>`).join('') || '<li>None identified</li>'}
+                                            </ul>
+                                        </div>
+                                    </div>
+                                    <div class="row">
+                                        <div class="col-12">
+                                            <h6 class="text-primary border-bottom pb-1">💡 Improvement Suggestions</h6>
+                                            <ul class="mb-0 small">
+                                                ${((item.feedback.improvements || item.feedback.improvement_suggestions || [])).map(p => `<li>${p}</li>`).join('') || '<li>None</li>'}
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+
+                        const correctPoints = (item.feedback.correct_points || []).map(p => `<li style="margin-bottom: 5px; color: #198754;">${p}</li>`).join('') || '<li style="margin-bottom: 5px; color: #6c757d;">None identified</li>';
+                        const missingPoints = (item.feedback.missing_points || []).map(p => `<li style="margin-bottom: 5px; color: #dc3545;">${p}</li>`).join('') || '<li style="margin-bottom: 5px; color: #6c757d;">None identified</li>';
+                        const improvements = (item.feedback.improvements || item.feedback.improvement_suggestions || []).map(p => `<li style="margin-bottom: 5px; color: #0d6efd;">${p}</li>`).join('') || '<li style="margin-bottom: 5px; color: #6c757d;">None</li>';
+
+                        pdfContent += `
+                            <div style="margin-bottom: 40px; padding: 25px; border: 1px solid #000; page-break-inside: avoid;">
+
+                                <div style="display:flex; justify-content:space-between; margin-bottom:15px;">
+                                    <h3 style="margin:0;">Question ${index + 1}</h3>
+                                    <h3 style="margin:0;">${item.score}/${item.max_score || 10}</h3>
+                                </div>
+
+                                <p><strong>Question:</strong> ${item.question}</p>
+                                <p><strong>Answer:</strong> ${item.answer}</p>
+
+                                <hr>
+
+                                <p><strong>Correct Points:</strong></p>
+                                <ul>${correctPoints}</ul>
+
+                                <p><strong>Missing Points:</strong></p>
+                                <ul>${missingPoints}</ul>
+
+                                <p><strong>Improvement Suggestions:</strong></p>
+                                <ul>${improvements}</ul>
+
+                            </div>
+                            `;
+                    });
+
+                    evalContent.innerHTML = htmlContent;
+                    document.getElementById('pdfQuestionsContent').innerHTML = pdfContent;
+
+                    document.getElementById('evaluationSummary').innerHTML = `<strong>🏆 Total Assignment Score: ${totalScore} / ${totalMaxScore}</strong>`;
+                    document.getElementById('pdfTotalScore').innerHTML = `Overall Score: ${totalScore} / ${totalMaxScore}`;
+
+                    const selectEl = document.querySelector('select[name="assignment_id"]');
+                    const selectedOption = selectEl.options[selectEl.selectedIndex];
+                    if (selectedOption && selectedOption.value) {
+                        const text = selectedOption.innerText;
+                        const match = text.match(/^(.*?)\s*\((.*?)\)$/);
+                        if (match) {
+                            document.getElementById('pdfAssignmentName').innerText = match[1];
+                            document.getElementById('pdfCourseName').innerText = match[2];
+                        } else {
+                            document.getElementById('pdfAssignmentName').innerText = text;
+                            document.getElementById('pdfCourseName').innerText = "Unknown";
+                        }
+                    }
+
+                    document.getElementById('pdfDate').innerText = new Date().toLocaleDateString();
+                    document.getElementById('evaluationSummary').style.display = 'block';
+                    document.getElementById('downloadPdfBtn').style.display = 'block';
+
+                } else {
+                    resultsDiv.className = 'mt-4 p-3 rounded bg-danger text-white';
+                    evalContent.innerHTML = `<strong>❌ Error:</strong> ${data.error || 'Unknown error occurred.'}`;
+                }
+
+            } catch (error) {
+                resultsDiv.className = 'mt-4 p-3 rounded bg-danger text-white';
+                evalContent.innerHTML = `<strong>❌ Connection Error:</strong> ${error.message}`;
+            }
+        }
+
+        function downloadPDF() {
+            const template = document.getElementById('pdfTemplate');
+            template.style.display = 'block'; // Make it visible for capture
+
+            const btn = document.getElementById('downloadPdfBtn');
+            btn.style.display = 'none'; // hide button from PDF
+
+            const opt = {
+                margin: 10,
+                filename: 'Academic_Evaluation_Report.pdf',
+                image: { type: 'jpeg', quality: 1 },
+
+                html2canvas: {
+                    scale: 3,   // 🔥 BIG FIX (makes it large + sharp)
+                    useCORS: true
+                },
+
+                jsPDF: {
+                    unit: 'mm',
+                    format: 'a4',
+                    orientation: 'portrait'
+                },
+                pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+            };
+
+            html2pdf().set(opt).from(template).save().then(() => {
+                template.style.display = 'none'; // Hide it again after capture
+                btn.style.display = 'block'; // show button again
+            });
+        }
+    </script>
+</body>
+
+</html>

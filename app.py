@@ -20,7 +20,7 @@ from google import genai
 # DB init
 from db import init_db
 init_db()
-
+from db import get_session, Question, Assignment
 # Concept catalog service
 from concept_service import get_or_create_concept_ids, identify_concepts_from_vector
 
@@ -35,7 +35,7 @@ from personalization import (
 )
 
 # Assignment checker
-from assignment_checker import evaluate_assignment
+from assignment_checker import evaluate_single_answer
 
 app = Flask(__name__)
 
@@ -84,70 +84,158 @@ def home():
 def student_doubt():
     return render_template("student_doubt.html")
 
-@app.route("/assignment_upload")
-def assignment_upload():
-    return render_template("assignment_upload.html")
+@app.route("/assignment_answer_upload")
+def assignment_answer_upload():
+    db = get_session()
+    assignments = db.query(Assignment).all()
+    db.close()
+    return render_template("assignment_answer_upload.html", assignments=assignments)
+
+
+@app.route("/assignment_ques_rubrics_upload")
+def assignment_ques_rubrics_upload():
+    return render_template("assignment_ques_rubrics_upload.html")
 
 @app.route("/teacher_notes")
 def teacher_notes():
     return render_template("teacher_notes.html")
 
+@app.route("/upload_assignment_pdf", methods=["POST"])
+def upload_assignment_pdf():
+    if "assignment_file" not in request.files or "rubric_file" not in request.files:
+        return jsonify({"error": "Both assignment and rubric files required"}), 400
+
+    assignment_file = request.files["assignment_file"]
+    rubric_file = request.files["rubric_file"]
+    subject = request.form.get("subject")
+
+    assignment_path = os.path.join(app.config["UPLOAD_FOLDER"], assignment_file.filename)
+    rubric_path = os.path.join(app.config["UPLOAD_FOLDER"], rubric_file.filename)
+
+    assignment_file.save(assignment_path)
+    rubric_file.save(rubric_path)
+
+    try:
+        # 🔹 Extract text
+        assignment_text = extract_text(assignment_path)
+        rubric_text = extract_text(rubric_path)
+
+        # 🔹 Parse questions
+        # Format Q1: Q2: Q3:
+        questions_split = re.split(r"Q\d+[:.)]?", assignment_text)
+        if len(questions_split) > 1:
+            questions_split = questions_split[1:] # discard the prefix/heading before Q1
+        questions = [q.strip() for q in questions_split if q.strip()]
+
+        # 🔹 Parse rubric
+        # Format Q1 Q2 Q3
+        rubric_parts_split = re.split(r"Q\d+[:.)]?", rubric_text)
+        if len(rubric_parts_split) > 1:
+            rubric_parts_split = rubric_parts_split[1:]
+        rubric_parts = [r.strip() for r in rubric_parts_split if r.strip()]
+
+        db = get_session()
+
+        # 🔥 IMPORTANT: Prevent duplicate assignment publishing
+        # Check if same assignment (same title) already exists
+        duplicate_by_title = db.query(Assignment).filter_by(title=assignment_file.filename).first()
+        if duplicate_by_title:
+            db.close()
+            return jsonify({"error": "Assignment already exists with this title."}), 400
+
+        # Check if same assignment (same questions) already exists
+        all_assignments = db.query(Assignment).all()
+        for existing_assignment in all_assignments:
+            existing_questions = [q.question_text for q in existing_assignment.questions]
+            if existing_questions and existing_questions == questions:
+                db.close()
+                return jsonify({"error": "Assignment already exists with these exact questions."}), 400
+
+        # 🔥 Create Assignment
+        assignment = Assignment(
+            subject=subject,
+            title=assignment_file.filename
+        )
+        db.add(assignment)
+        db.commit()  # get assignment_id
+
+        saved_questions = []
+        assignment_id=assignment.assignment_id
+        # 🔹 Insert questions
+        for i, q in enumerate(questions):
+            rubric_for_q = rubric_parts[i] if i < len(rubric_parts) else ""
+
+            new_q = Question(
+                assignment_id=assignment_id,
+                subject=subject,
+                question_text=q,
+                rubric_text=rubric_for_q,
+                concept_ids_json="[]"
+            )
+
+            db.add(new_q)
+            saved_questions.append(q)
+
+        db.commit()
+        db.close()
+
+        return jsonify({
+            "message": "Assignment stored successfully",
+            "assignment_id": assignment_id,
+            "questions": saved_questions,
+            "questions_stored": len(saved_questions)
+        }), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 # =========================
-# Upload Teacher Notes with Evaluation Rules
+# Upload Teacher Notes (ONLY)
 # =========================
 @app.route("/upload_notes", methods=["POST"])
 def upload_notes():
-    if "file" not in request.files or "evaluation_rules_file" not in request.files:
-        return jsonify({"error": "Missing notes or rubric file"}), 400
+    if "file" not in request.files:
+        return jsonify({"error": "No file uploaded"}), 400
 
     file = request.files["file"]
-    rules_file_upload = request.files["evaluation_rules_file"]
 
-    if file.filename == "" or rules_file_upload.filename == "":
-        return jsonify({"error": "No file selected for notes or rubric"}), 400
+    if file.filename == "":
+        return jsonify({"error": "No file selected"}), 400
 
-    if not allowed_file(file.filename) or not allowed_file(rules_file_upload.filename):
-        return jsonify({"error": "Only PDF and txt allowed for both files"}), 400
+    if not allowed_file(file.filename):
+        return jsonify({"error": "Only PDF and txt allowed"}), 400
 
     filename = secure_filename(file.filename)
     filepath = os.path.join(app.config["UPLOAD_FOLDER"], filename)
     file.save(filepath)
 
-    rules_filename = secure_filename(rules_file_upload.filename)
-    rules_filepath = os.path.join(app.config["UPLOAD_FOLDER"], rules_filename)
-    rules_file_upload.save(rules_filepath)
-
-    print(f"✅ Uploaded teacher notes: {filename} and rubric: {rules_filename}")
+    print(f"✅ Uploaded teacher notes: {filename}")
 
     try:
-        # Process and extract teacher notes
         extracted_text = extract_text(filepath)
+
+        if not extracted_text:
+            return jsonify({"error": "Could not extract text from PDF"}), 400
+
         chunks = chunk_text(extracted_text)
+
+        if not chunks:
+            return jsonify({"error": "Chunking failed"}), 400
+
         embedding_pairs = generate_embeddings(chunks)
+
+        if not embedding_pairs:
+            return jsonify({"error": "Embedding failed"}), 400
+
         save_to_vector_store(embedding_pairs, filename)
-        
-        # Process and extract evaluation rules
-        evaluation_rules = extract_text(rules_filepath)
-
-        # Store evaluation rules as a text file for the assignment checker
-        rules_dest_file = os.path.join(app.config["UPLOAD_FOLDER"], "evaluation_rules.txt")
-        with open(rules_dest_file, "w", encoding="utf-8") as f:
-            f.write(evaluation_rules)
-
-        # Clean up the original uploaded rubric file since we extracted its text
-        if os.path.exists(rules_filepath):
-            os.remove(rules_filepath)
 
         return jsonify({
-            "message": "Teacher notes and evaluation rules uploaded successfully",
-            "chunks": len(chunks),
-            "rules_length": len(evaluation_rules)
+            "message": "Teacher notes uploaded successfully",
+            "chunks": len(chunks)
         }), 200
 
     except Exception as e:
-        print("❌ Upload processing error:", e)
+        print("❌ Upload processing error:", str(e))
         return jsonify({"error": str(e)}), 500
-
 # =========================
 # Evaluate Assignment
 # =========================
@@ -157,8 +245,10 @@ def evaluate_assignment_route():
         return jsonify({"error": "No file part"}), 400
 
     file = request.files["file"]
-    topic = request.form.get("topic", "").strip()
-    subject = request.form.get("subject", "general").strip()
+    assignment_id = request.form.get("assignment_id")
+
+    if not assignment_id:
+        return jsonify({"error": "assignment_id is required"}), 400
 
     if file.filename == "":
         return jsonify({"error": "No file selected"}), 400
@@ -166,34 +256,110 @@ def evaluate_assignment_route():
     if not allowed_file(file.filename):
         return jsonify({"error": "Only PDF and txt allowed"}), 400
 
-    if not topic:
-        return jsonify({"error": "Topic is required"}), 400
-
     filename = secure_filename(file.filename)
     filepath = os.path.join(app.config["UPLOAD_FOLDER"], filename)
     file.save(filepath)
 
-    print(f"✅ Uploaded assignment: {filename}")
+    print(f"✅ Uploaded student answer: {filename} for assignment {assignment_id}")
 
     try:
         # Extract student answer text
         student_answer_text = extract_text(filepath)
 
-        # Load evaluation rules
-        rules_file = os.path.join(app.config["UPLOAD_FOLDER"], "evaluation_rules.txt")
-        if not os.path.exists(rules_file):
-            return jsonify({"error": "Evaluation rules not found. Please upload teacher notes first."}), 400
+        # Parse answers A1:, A2:, A3:
+        answers_split = re.split(r"A\d+[:.)]?", student_answer_text)
+        if len(answers_split) > 1:
+            answers_split = answers_split[1:] # discard the prefix/heading before A1
+        
+        answers = [a.strip() for a in answers_split if a.strip()]
 
-        with open(rules_file, "r", encoding="utf-8") as f:
-            evaluation_rules_text = f.read()
+        db = get_session()
+        questions = db.query(Question).filter_by(assignment_id=assignment_id).all()
+        db.close()
 
-        # Evaluate assignment
-        result = evaluate_assignment(student_answer_text, topic, subject, evaluation_rules_text)
+        if not questions:
+            return jsonify({"error": "No questions found for this assignment_id"}), 404
 
-        if "error" in result:
-            return jsonify(result), 400
+        from assignment_checker import evaluate_assignment_batch
+        from concept_service import get_or_create_concept_ids
+        
+        # default student_id to "S1" like the /ask route if not provided
+        student_id = request.form.get("student_id", "S1").strip()
+        get_or_create_student(student_id)
 
-        return jsonify(result), 200
+        store = get_vector_store()
+        assignment_data = {"questions": []}
+
+        for i, q in enumerate(questions):
+            ans = answers[i] if i < len(answers) else ""
+            
+            # RAG Retrieval
+            context_str = ""
+            embedding_pairs = generate_embeddings([q.question_text])
+            if embedding_pairs:
+                query_vector = embedding_pairs[0][0]
+                rag_results = store.search(query_vector, k=3) if store else []
+                retrieved_texts = [r.get("chunk_text", "") for r in rag_results]
+                context_str = "\n\n".join([t for t in retrieved_texts if t]).strip()
+                
+            assignment_data["questions"].append({
+                "id": i,
+                "question": q.question_text,
+                "rubric": q.rubric_text,
+                "answer": ans,
+                "context": context_str
+            })
+
+        # Single LLM Call
+        batch_res = evaluate_assignment_batch(assignment_data)
+        
+        if "error" in batch_res:
+            return jsonify({"error": batch_res["error"]}), 500
+
+        final_results = []
+        for item in batch_res.get("results", []):
+            q_id = item.get("id")
+            if q_id is None or q_id >= len(questions) or q_id < 0:
+                continue
+                
+            q = questions[q_id]
+            ans = assignment_data["questions"][q_id]["answer"]
+            
+            # Process Concepts & Personalization
+            concepts = item.get("concepts", [])
+            concept_ids = []
+            if concepts:
+                concept_ids = get_or_create_concept_ids(q.subject, concepts)
+                
+                # Determine mastery feedback based on score percentage
+                score = item.get("score", 0)
+                max_score = item.get("max_score", 10)
+                percent = score / max_score if max_score > 0 else 0
+                feedback_val = "understood" if percent >= 0.7 else "confused"
+                
+                update_mastery(student_id, q.subject, concept_ids, feedback_val)
+                
+                # Log specific mistakes
+                mistakes = item.get("mistakes", [])
+                for m in mistakes:
+                    increment_mistake(student_id, q.subject, concept_ids, mistake_tag=m)
+            
+            # Structure response
+            final_results.append({
+                "question": q.question_text,
+                "answer": ans,
+                "score": item.get("score", 0),
+                "max_score": item.get("max_score", 10),
+                "concepts": concepts,
+                "mistakes": item.get("mistakes", []),
+                "feedback": {
+                    "correct_points": item.get("correct_points", []),
+                    "missing_points": item.get("missing_points", []),
+                    "improvements": item.get("improvements", [])
+                }
+            })
+
+        return jsonify(final_results), 200
 
     except Exception as e:
         print("❌ Evaluation error:", e)

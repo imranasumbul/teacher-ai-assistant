@@ -4,125 +4,153 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Teacher Notes Upload</title>
+
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: 'Segoe UI', sans-serif; background: #eef3fb; min-height: 100vh; }
-    nav { background: #2980b9; display: flex; align-items: center; justify-content: space-between; padding: 14px 32px; }
-    nav .brand { color: #fff; font-size: 1.1rem; font-weight: 600; }
-    nav a { color: #fff; text-decoration: none; border: 1.5px solid #fff; border-radius: 6px; padding: 6px 18px; font-size: 0.82rem; font-weight: 600; }
-    nav a:hover { background: rgba(255,255,255,0.15); }
-    main { max-width: 700px; margin: 40px auto; padding: 0 20px; }
-    h1 { font-size: 1.8rem; font-weight: 700; color: #1a1a1a; margin-bottom: 24px; }
-    .card { background: #fff; border-radius: 14px; padding: 32px; box-shadow: 0 2px 12px rgba(0,0,0,0.07); }
-    label { display: block; font-size: 0.95rem; font-weight: 500; color: #333; margin-bottom: 8px; }
-    input[type="file"] { width: 100%; padding: 10px; border: 1.5px solid #ddd; border-radius: 8px; font-size: 0.9rem; margin-bottom: 20px; }
-    textarea { width: 100%; padding: 14px; border: 1.5px solid #ddd; border-radius: 8px; font-size: 0.95rem; resize: vertical; min-height: 120px; outline: none; font-family: inherit; margin-bottom: 20px; }
-    textarea:focus { border-color: #2980b9; }
-    .btn-upload { background: #2980b9; color: #fff; border: none; border-radius: 8px; padding: 12px 28px; font-size: 0.88rem; font-weight: 700; letter-spacing: 0.5px; cursor: pointer; }
-    .btn-upload:hover { background: #2471a3; }
-    .btn-upload:disabled { background: #a9cce3; cursor: not-allowed; }
-    .banner { margin-top: 20px; border-radius: 10px; padding: 14px 18px; font-size: 0.95rem; font-weight: 500; display: none; }
-    .banner.processing { background: #00bcd4; color: #fff; }
-    .banner.success { background: #27ae60; color: #fff; }
-    .banner.error { background: #e74c3c; color: #fff; }
-    .container{
-        max-width: 800px;
-        margin-inline: auto;
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #eef3fb;
+      margin: 0;
     }
-    pre { background: #fff; border-radius: 6px; padding: 12px; font-size: 0.85rem; margin-top: 10px; white-space: pre-wrap; word-break: break-all; }
+
+    nav {
+      background: #2980b9;
+      padding: 14px 32px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      color: white;
+    }
+
+    nav a {
+      color: white;
+      text-decoration: none;
+      border: 1px solid white;
+      padding: 6px 14px;
+      border-radius: 6px;
+    }
+
+    .container {
+      max-width: 700px;
+      margin: 50px auto;
+      padding: 20px;
+    }
+
+    h2 {
+      margin-bottom: 20px;
+    }
+
+    .card {
+      background: white;
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+    }
+
+    input[type="file"] {
+      width: 100%;
+      padding: 10px;
+      margin-top: 10px;
+      margin-bottom: 20px;
+      border-radius: 8px;
+      border: 1px solid #ddd;
+    }
+
+    button {
+      background: #2980b9;
+      color: white;
+      padding: 12px 24px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background: #2471a3;
+    }
+
+    #result {
+      margin-top: 20px;
+      padding: 15px;
+      border-radius: 8px;
+      display: none;
+    }
+
+    .success { background: #27ae60; color: white; }
+    .error { background: #e74c3c; color: white; }
+    .loading { background: #3498db; color: white; }
+
+    pre {
+      background: #fff;
+      padding: 10px;
+      border-radius: 6px;
+      color: black;
+      margin-top: 10px;
+    }
   </style>
 </head>
 
-<body class="bg-page-blue">
+<body>
 
-    <nav class="navbar navbar-dark bg-navbar-blue">
-        <div class="container">
-            <span class="navbar-brand">Teacher Panel</span>
-            <a href="/" class="btn btn-light btn-sm">Dashboard</a>
-        </div>
-    </nav>
+<nav>
+  <span>Teacher Panel</span>
+  <a href="/">Dashboard</a>
+</nav>
 
-    <div class="container mt-4">
-        <h3 class="page-title mb-4">Upload Teacher Notes</h3>
+<div class="container">
+  <h2>Upload Teacher Notes / Syllabus</h2>
 
-        <div class="card p-4">
-            <form id="uploadForm" onsubmit="uploadFile(event)">
-                <div class="mb-3">
-                    <label class="form-label">Upload Notes / Syllabus (.txt or .pdf)</label>
-                    <input type="file" id="fileInput" name="file" class="form-control" accept=".pdf,.txt" required>
-                </div>
+  <div class="card">
+    <form id="uploadForm" onsubmit="uploadFile(event)">
 
-                <div class="mb-3">
-                    <label class="form-label">Upload Evaluation Rules / Rubric (.txt or .pdf)</label>
-                    <input type="file" id="rulesInput" name="evaluation_rules_file" class="form-control" accept=".pdf,.txt" required>
-                </div>
+      <label>Upload Notes (.pdf or .txt)</label>
+      <input type="file" name="file" required>
 
-                <button type="submit" class="btn btn-blue">Upload File</button>
-            </form>
-            <div id="result" class="mt-3 p-3 rounded" style="display: none;"></div>
-        </div>
-    </div>
+      <button type="submit">Upload</button>
 
-    <script>
-        async function uploadFile(event) {
-            event.preventDefault();
+    </form>
 
-            const form = document.getElementById('uploadForm');
-            const fileInput = document.getElementById('fileInput');
-            const resultDiv = document.getElementById('result');
+    <div id="result"></div>
+  </div>
+</div>
 
-            if (!fileInput.files.length) {
-                resultDiv.className = 'mt-3 p-3 rounded bg-danger text-white';
-                resultDiv.textContent = 'Please select a file first';
-                resultDiv.style.display = 'block';
-                return;
-            }
+<script>
+async function uploadFile(event) {
+    event.preventDefault();
 
-            const formData = new FormData(form);
-            // formData.append('file', fileInput.files[0]); // Automatically grabbed via new FormData(form), just need name="file" on input
+    const form = document.getElementById('uploadForm');
+    const resultDiv = document.getElementById('result');
 
-            // Show loading message
-            resultDiv.className = 'mt-3 p-3 rounded bg-info text-white';
-            resultDiv.innerHTML = '⏳ Uploading and processing...';
-            resultDiv.style.display = 'block';
+    const formData = new FormData(form);
 
-            try {
-                const response = await fetch('/upload_notes', {
-                    method: 'POST',
-                    body: formData
-                });
+    resultDiv.style.display = 'block';
+    resultDiv.className = 'loading';
+    resultDiv.innerHTML = '⏳ Uploading...';
 
-                const data = await response.json();
+    try {
+        const response = await fetch('/upload_notes', {
+            method: 'POST',
+            body: formData
+        });
 
-                if (response.ok) {
-                    resultDiv.className = 'mt-3 p-3 rounded bg-success text-white';
-                    resultDiv.innerHTML = `
-                        <strong>✅ Success!</strong><br><br>
-                        <strong>📄 Response Details:</strong><br>
-                        <pre class="bg-light text-dark p-2 rounded mt-2" style="overflow-x: auto;">${JSON.stringify(data, null, 2)}</pre>
-                    `;
-                } else {
-                    resultDiv.className = 'mt-3 p-3 rounded bg-danger text-white';
-                    resultDiv.innerHTML = `
-                        <strong>❌ Error!</strong><br><br>
-                        <pre class="bg-light text-dark p-2 rounded mt-2">${JSON.stringify(data, null, 2)}</pre>
-                    `;
-                }
+        const data = await response.json();
 
-                resultDiv.style.display = 'block';
-            } catch (error) {
-                resultDiv.className = 'mt-3 p-3 rounded bg-danger text-white';
-                resultDiv.innerHTML = `
-                    <strong>❌ Connection Error!</strong><br><br>
-                    Error: ${error.message}<br><br>
-                    <strong>Possible causes:</strong><br>
-                    • Server is not running (run: python app.py)<br>
-                    • Server crashed (check terminal for errors)<br><br>
-                    <strong>Check your terminal for error messages!</strong>
-                `;
-                resultDiv.style.display = 'block';
-            }
+        if (response.ok) {
+            resultDiv.className = 'success';
+            resultDiv.innerHTML = `
+                <b>✅ Uploaded Successfully</b>
+                <pre>${JSON.stringify(data, null, 2)}</pre>
+            `;
+        } else {
+            resultDiv.className = 'error';
+            resultDiv.innerHTML = `<b>❌ Error:</b> ${data.error}`;
         }
-    </script>
+
+    } catch (err) {
+        resultDiv.className = 'error';
+        resultDiv.innerHTML = "❌ Server error";
+    }
+}
+</script>
+
 </body>
 </html>
