@@ -21,6 +21,8 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship, sessionmaker
 from sqlalchemy.engine import Engine
+from flask_login import UserMixin
+from werkzeug.security import generate_password_hash, check_password_hash
 
 
 # ---------- Helpers ----------
@@ -51,13 +53,18 @@ def _set_sqlite_pragma(dbapi_connection, connection_record):
 #                     CORE ENTITIES
 # =========================================================
 
-class Student(Base):
-    __tablename__ = "students"
+class User(Base, UserMixin):
+    __tablename__ = "users"
 
-    student_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    password_hash: Mapped[str] = mapped_column(String(256), nullable=False)
+    role: Mapped[str] = mapped_column(String(16), nullable=False)  # "student" or "teacher"
     name: Mapped[Optional[str]] = mapped_column(String(120), nullable=True)
-    class_code: Mapped[Optional[str]] = mapped_column(String(16), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+    # Role-Specific Metadata
+    subject: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)      # Teachers only
+    class_code: Mapped[Optional[str]] = mapped_column(String(16), nullable=True)    # Students only
 
     concept_mastery: Mapped[list["ConceptMastery"]] = relationship(
         back_populates="student", cascade="all, delete-orphan"
@@ -69,18 +76,11 @@ class Student(Base):
         back_populates="student", cascade="all, delete-orphan"
     )
 
+    def set_password(self, password: str):
+        self.password_hash = generate_password_hash(password)
 
-class Teacher(Base):
-    __tablename__ = "teachers"
-
-    teacher_id: Mapped[str] = mapped_column(String(64), primary_key=True)
-    name: Mapped[Optional[str]] = mapped_column(String(120), nullable=True)
-    subject: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
-
-    assignments: Mapped[list["Assignment"]] = relationship(
-        back_populates="teacher", cascade="all, delete-orphan"
-    )
+    def check_password(self, password: str) -> bool:
+        return check_password_hash(self.password_hash, password)
 
 
 # =========================================================
@@ -99,8 +99,6 @@ class ConceptCatalog(Base):
     label = mapped_column(String(128), nullable=False)
     embedding_json = mapped_column(Text, nullable=True)
     created_at = mapped_column(DateTime(timezone=True), default=utcnow)
-
-
 # =========================================================
 #                 STUDENT LEARNING STATE
 # =========================================================
@@ -118,7 +116,7 @@ class ConceptMastery(Base):
 
     student_id: Mapped[str] = mapped_column(
         String(64),
-        ForeignKey("students.student_id", ondelete="CASCADE"),
+        ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False
     )
     subject: Mapped[str] = mapped_column(String(64), nullable=False)
@@ -136,7 +134,7 @@ class ConceptMastery(Base):
         onupdate=utcnow
     )
 
-    student: Mapped["Student"] = relationship(back_populates="concept_mastery")
+    student: Mapped["User"] = relationship(back_populates="concept_mastery")
     concept: Mapped["ConceptCatalog"] = relationship()
 
 
@@ -153,7 +151,7 @@ class MistakePattern(Base):
 
     student_id: Mapped[str] = mapped_column(
         String(64),
-        ForeignKey("students.student_id", ondelete="CASCADE"),
+        ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False
     )
     subject: Mapped[str] = mapped_column(String(64), nullable=False)
@@ -172,7 +170,7 @@ class MistakePattern(Base):
         onupdate=utcnow
     )
 
-    student: Mapped["Student"] = relationship(back_populates="mistake_patterns")
+    student: Mapped["User"] = relationship(back_populates="mistake_patterns")
     concept: Mapped["ConceptCatalog"] = relationship()
 
 
@@ -187,7 +185,7 @@ class Interaction(Base):
 
     student_id: Mapped[str] = mapped_column(
         String(64),
-        ForeignKey("students.student_id", ondelete="CASCADE"),
+        ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False
     )
     subject: Mapped[str] = mapped_column(String(64), nullable=False)
@@ -201,51 +199,9 @@ class Interaction(Base):
     outcome: Mapped[str] = mapped_column(String(16), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
-    student: Mapped["Student"] = relationship(back_populates="interactions")
-# =========================================================
-#             ASSIGNMENT SYSTEM (SIMPLIFIED)
-# =========================================================
-
-class Assignment(Base):
-    __tablename__ = "assignments"
-
-    assignment_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    subject: Mapped[str] = mapped_column(String(64), nullable=False)
-    title: Mapped[str] = mapped_column(String(200), nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
-    
-    teacher_id: Mapped[Optional[str]] = mapped_column(
-        String(64),
-        ForeignKey("teachers.teacher_id", ondelete="SET NULL"),
-        nullable=True
-    )
-
-    teacher: Mapped[Optional["Teacher"]] = relationship(back_populates="assignments")
-
-    questions: Mapped[list["Question"]] = relationship(
-        back_populates="assignment", cascade="all, delete-orphan"
-    )
+    student: Mapped["User"] = relationship(back_populates="interactions")
 
 
-class Question(Base):
-    __tablename__ = "questions"
-
-    question_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-
-    assignment_id: Mapped[int] = mapped_column(
-        Integer,
-        ForeignKey("assignments.assignment_id", ondelete="CASCADE"),
-        nullable=False
-    )
-
-    subject: Mapped[str] = mapped_column(String(64), nullable=False)
-    question_text: Mapped[str] = mapped_column(Text, nullable=False)
-    rubric_text: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    concept_ids_json: Mapped[str] = mapped_column(Text, default="[]")
-
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
-
-    assignment: Mapped["Assignment"] = relationship(back_populates="questions")
 # =========================================================
 #                  ENGINE / SESSION
 # =========================================================
