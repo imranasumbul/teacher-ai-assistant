@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login / Sign Up | Teacher AI Assistant</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: radial-gradient(circle at 10% 20%, rgb(240, 243, 246) 0%, rgb(220, 227, 235) 90.1%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 30px 20px;
+    }
+    
+    .auth-container {
+      width: 100%;
+      max-width: 440px;
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      border-radius: 20px;
+      box-shadow: 0 10px 30px rgba(41, 128, 185, 0.15);
+      border: 1px solid rgba(255, 255, 255, 0.8);
+      overflow: hidden;
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+    
+    .auth-container:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 15px 35px rgba(41, 128, 185, 0.22);
+    }
+    
+    .auth-header {
+      background: linear-gradient(135deg, #2980b9 0%, #2c3e50 100%);
+      padding: 36px 32px 30px;
+      color: #fff;
+      text-align: center;
+      position: relative;
+    }
+    
+    .auth-header h1 {
+      font-size: 1.6rem;
+      font-weight: 800;
+      margin-bottom: 6px;
+      letter-spacing: -0.5px;
+    }
+    
+    .auth-header p {
+      font-size: 0.85rem;
+      color: rgba(255, 255, 255, 0.8);
+    }
+
+    .tabs {
+      display: flex;
+      background: #f8f9fa;
+      border-bottom: 1px solid #e9ecef;
+    }
+    
+    .tab {
+      flex: 1;
+      padding: 16px;
+      text-align: center;
+      cursor: pointer;
+      font-weight: 700;
+      font-size: 0.9rem;
+      color: #7f8c8d;
+      transition: all 0.25s ease;
+      border-bottom: 3px solid transparent;
+    }
+    
+    .tab:hover {
+      color: #2980b9;
+      background: rgba(41, 128, 185, 0.04);
+    }
+    
+    .tab.active {
+      color: #2980b9;
+      border-bottom-color: #2980b9;
+      background: #fff;
+    }
+    
+    .form-wrapper {
+      padding: 32px;
+    }
+    
+    form {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      animation: fadeIn 0.4s ease;
+    }
+    
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    
+    label {
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: #34495e;
+      letter-spacing: 0.3px;
+      text-transform: uppercase;
+    }
+    
+    input, select {
+      padding: 12px 16px;
+      border: 2px solid #e2e8f0;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      color: #2d3748;
+      background: #fcfdfd;
+      transition: all 0.25s ease;
+      outline: none;
+    }
+    
+    input:focus, select:focus {
+      border-color: #2980b9;
+      background: #fff;
+      box-shadow: 0 0 0 3px rgba(41, 128, 185, 0.15);
+    }
+    
+    .btn {
+      padding: 14px;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      font-weight: 700;
+      cursor: pointer;
+      color: #fff;
+      background: linear-gradient(135deg, #2980b9 0%, #2471a3 100%);
+      transition: all 0.25s ease;
+      box-shadow: 0 4px 12px rgba(41, 128, 185, 0.2);
+    }
+    
+    .btn:hover {
+      opacity: 0.95;
+      box-shadow: 0 6px 18px rgba(41, 128, 185, 0.35);
+      transform: translateY(-1px);
+    }
+    
+    .btn:active {
+      transform: translateY(1px);
+    }
+
+    .error-msg {
+      background: #fdf2f2;
+      border-left: 4px solid #f98080;
+      color: #9b1c1c;
+      padding: 12px;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      display: none;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 16px;
+      animation: shake 0.3s ease;
+    }
+
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      25% { transform: translateX(-5px); }
+      75% { transform: translateX(5px); }
+    }
+
+    .hidden {
+      display: none !important;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="auth-container">
+    <div class="auth-header">
+      <h1>Teacher AI Assistant</h1>
+      <p>Secure Portal Login & Registration</p>
+    </div>
+
+    <div class="tabs">
+      <div id="login-tab" class="tab active" onclick="switchTab('login')">LOG IN</div>
+      <div id="signup-tab" class="tab" onclick="switchTab('signup')">CREATE ACCOUNT</div>
+    </div>
+
+    <div class="form-wrapper">
+      <div id="error-box" class="error-msg"></div>
+
+      <!-- Login Form -->
+      <form id="login-form" onsubmit="handleLogin(event)">
+        <div class="form-group">
+          <label for="login-id">User ID (or Teacher Email)</label>
+          <input type="text" id="login-id" required placeholder="e.g., S1 or teacher@school.edu">
+        </div>
+        <div class="form-group">
+          <label for="login-password">Password</label>
+          <input type="password" id="login-password" required placeholder="••••••••">
+        </div>
+        <button type="submit" class="btn">LOG IN</button>
+      </form>
+
+      <!-- Signup Form -->
+      <form id="signup-form" class="hidden" onsubmit="handleSignup(event)">
+        <div class="form-group">
+          <label for="signup-role">I am registering as a...</label>
+          <select id="signup-role" onchange="toggleRoleFields()" required>
+            <option value="student">Student</option>
+            <option value="teacher">Teacher</option>
+          </select>
+        </div>
+        
+        <div class="form-group">
+          <label for="signup-id">User ID / Email</label>
+          <input type="text" id="signup-id" required placeholder="e.g., Student ID or email">
+        </div>
+        
+        <div class="form-group">
+          <label for="signup-name">Full Name</label>
+          <input type="text" id="signup-name" required placeholder="Jane Doe">
+        </div>
+        
+        <div class="form-group">
+          <label for="signup-password">Password</label>
+          <input type="password" id="signup-password" required placeholder="Create a strong password">
+        </div>
+        
+        <!-- Student Metadata Column -->
+        <div class="form-group" id="class-code-group">
+          <label for="signup-class-code">Class Code</label>
+          <input type="text" id="signup-class-code" placeholder="e.g., CS101">
+        </div>
+
+        <!-- Teacher Metadata Column -->
+        <div class="form-group hidden" id="subject-group">
+          <label for="signup-subject">Subject Specialty</label>
+          <input type="text" id="signup-subject" placeholder="e.g., Computer Science">
+        </div>
+
+        <button type="submit" class="btn">CREATE ACCOUNT</button>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    const errorBox = document.getElementById('error-box');
+
+    function showError(message) {
+      errorBox.textContent = message;
+      errorBox.style.display = 'flex';
+    }
+
+    function clearError() {
+      errorBox.textContent = '';
+      errorBox.style.display = 'none';
+    }
+
+    function switchTab(mode) {
+      clearError();
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('form').forEach(f => f.classList.add('hidden'));
+      
+      if(mode === 'login') {
+        document.getElementById('login-tab').classList.add('active');
+        document.getElementById('login-form').classList.remove('hidden');
+      } else {
+        document.getElementById('signup-tab').classList.add('active');
+        document.getElementById('signup-form').classList.remove('hidden');
+      }
+    }
+
+    function toggleRoleFields() {
+      const role = document.getElementById('signup-role').value;
+      if (role === 'teacher') {
+        document.getElementById('subject-group').classList.remove('hidden');
+        document.getElementById('class-code-group').classList.add('hidden');
+      } else {
+        document.getElementById('subject-group').classList.add('hidden');
+        document.getElementById('class-code-group').classList.remove('hidden');
+      }
+    }
+
+    async function handleLogin(e) {
+      e.preventDefault();
+      clearError();
+      const payload = {
+        id: document.getElementById('login-id').value,
+        password: document.getElementById('login-password').value
+      };
+      
+      try {
+        const response = await fetch('/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await response.json();
+        
+        if(response.ok) {
+          window.location.href = data.redirect;
+        } else {
+          showError(data.error || "An error occurred during login.");
+        }
+      } catch (err) {
+        showError("Unable to reach the server. Please try again.");
+      }
+    }
+
+    async function handleSignup(e) {
+      e.preventDefault();
+      clearError();
+      const role = document.getElementById('signup-role').value;
+      const payload = {
+        role: role,
+        id: document.getElementById('signup-id').value,
+        name: document.getElementById('signup-name').value,
+        password: document.getElementById('signup-password').value,
+        class_code: role === 'student' ? document.getElementById('signup-class-code').value : undefined,
+        subject: role === 'teacher' ? document.getElementById('signup-subject').value : undefined
+      };
+
+      try {
+        const response = await fetch('/signup', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await response.json();
+        
+        if(response.ok) {
+          alert("Account successfully created! Please log in.");
+          switchTab('login');
+        } else {
+          showError(data.error || "An error occurred during signup.");
+        }
+      } catch (err) {
+        showError("Unable to reach the server. Please try again.");
+      }
+    }
+  </script>
+</body>
+</html>

@@ -1,6 +1,9 @@
 # Environment variables
 .env
 
+# SQLite database
+app.db
+
 # Python cache
 __pycache__/
 *.pyc

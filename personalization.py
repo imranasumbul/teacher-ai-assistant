@@ -6,7 +6,7 @@ from typing import Dict, List, Tuple, Optional
 
 from db import (
     get_session,
-    Student,
+    User,
     ConceptMastery,
     MistakePattern,
     Interaction,
@@ -32,10 +32,10 @@ def clamp01(x: float) -> float:
     return max(0.0, min(1.0, x))
 
 
-def get_or_create_student(student_id: str, name: str | None = None, class_code: str | None = None) -> Student:
+def get_or_create_student(student_id: str, name: str | None = None, class_code: str | None = None) -> User:
     session = get_session()
     try:
-        s = session.query(Student).filter(Student.student_id == student_id).first()
+        s = session.query(User).filter(User.id == student_id).first()
         if s:
             # optional update if passed
             updated = False
@@ -49,7 +49,8 @@ def get_or_create_student(student_id: str, name: str | None = None, class_code: 
                 session.commit()
             return s
 
-        s = Student(student_id=student_id, name=name, class_code=class_code)
+        s = User(id=student_id, name=name, role="student", class_code=class_code)
+        s.set_password("default-student-pass")
         session.add(s)
         session.commit()
         return s
