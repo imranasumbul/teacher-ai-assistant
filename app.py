@@ -328,12 +328,13 @@ def evaluate_assignment_route():
             # Process Concepts & Personalization
             concepts = item.get("concepts", [])
             concept_ids = []
+            score = item.get("score", 0)
+            max_score = item.get("max_score", 10)
+            
             if concepts:
                 concept_ids = get_or_create_concept_ids(q.subject, concepts)
                 
                 # Determine mastery feedback based on score percentage
-                score = item.get("score", 0)
-                max_score = item.get("max_score", 10)
                 percent = score / max_score if max_score > 0 else 0
                 feedback_val = "understood" if percent >= 0.7 else "confused"
                 
@@ -343,6 +344,16 @@ def evaluate_assignment_route():
                 mistakes = item.get("mistakes", [])
                 for m in mistakes:
                     increment_mistake(student_id, q.subject, concept_ids, mistake_tag=m)
+                    
+            # Log the assignment evaluation into the interaction heatmap table!
+            log_interaction(
+                student_id=student_id,
+                subject=q.subject,
+                interaction_type="assignment_evaluated",
+                question_text=q.question_text,
+                concept_ids=concept_ids,
+                outcome=f"scored_{score}_{max_score}"
+            )
             
             # Structure response
             final_results.append({
