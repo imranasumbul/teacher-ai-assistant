@@ -244,8 +244,87 @@ def init_db(db_path: Optional[str] = None):
     )
     return _engine
 
+# =========================================================
+#             ASSIGNMENT SYSTEM
+# =========================================================
+
+class Assignment(Base):
+    __tablename__ = "assignments"
+
+    assignment_id: Mapped[int] = mapped_column(
+        Integer,
+        primary_key=True,
+        autoincrement=True
+    )
+
+    subject: Mapped[str] = mapped_column(
+        String(64),
+        nullable=False
+    )
+
+    title: Mapped[str] = mapped_column(
+        String(200),
+        nullable=False
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=utcnow
+    )
+
+    questions: Mapped[list["Question"]] = relationship(
+        back_populates="assignment",
+        cascade="all, delete-orphan"
+    )
+
+
+class Question(Base):
+    __tablename__ = "questions"
+
+    question_id: Mapped[int] = mapped_column(
+        Integer,
+        primary_key=True,
+        autoincrement=True
+    )
+
+    assignment_id: Mapped[int] = mapped_column(
+        Integer,
+        ForeignKey("assignments.assignment_id", ondelete="CASCADE"),
+        nullable=False
+    )
+
+    subject: Mapped[str] = mapped_column(
+        String(64),
+        nullable=False
+    )
+
+    question_text: Mapped[str] = mapped_column(
+        Text,
+        nullable=False
+    )
+
+    rubric_text: Mapped[Optional[str]] = mapped_column(
+        Text,
+        nullable=True
+    )
+
+    concept_ids_json: Mapped[str] = mapped_column(
+        Text,
+        default="[]"
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=utcnow
+    )
+
+    assignment: Mapped["Assignment"] = relationship(
+        back_populates="questions"
+    )
+
 
 def get_session():
     if _SessionLocal is None:
         raise RuntimeError("DB not initialized. Call init_db() first.")
     return _SessionLocal()
+

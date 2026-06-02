@@ -5,7 +5,8 @@
     <title>Assignment Upload</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="/static/css/static.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 </head>
 
 <body class="bg-page-yellow">
@@ -50,50 +51,13 @@
                 <div id="evaluationSummary" class="alert alert-info fs-5" style="display: none;"></div>
                 <div id="evaluationContent"></div>
             </div>
-
-            <!-- Hidden PDF Template -->
-            <div id="pdfTemplate" style="
-    display: none;
-    font-family: 'Times New Roman', serif;
-    color: #000;
-    padding: 60px;
-    line-height: 1.8;
-    width: 100%;
-    background: white;
-">
-                <div style="text-align:center; margin-bottom:20px;">
-    <h2 style="margin:0; font-size:28px; font-weight:bold;">
-        Machine Learning Assignment Report
-    </h2>
-    <p style="margin: 5px 0 0; font-size: 14px; color: #555;">Generated on: <span id="pdfDate"></span></p>
-</div>
-
-                <table style="width: 100%; border-collapse: collapse; margin-bottom: 30px; font-size: 14px;">
-                    <tr>
-                        <td style="padding: 8px; border: 1px solid #ddd;"><strong>Assignment:</strong> <span
-                                id="pdfAssignmentName"></span></td>
-                        <td style="padding: 8px; border: 1px solid #ddd;"><strong>Course:</strong> <span
-                                id="pdfCourseName"></span></td>
-                    </tr>
-                    <tr>
-                        <td style="padding: 8px; border: 1px solid #ddd;"><strong>Student Name:</strong> [Pending Login]
-                        </td>
-                        <td style="padding: 8px; border: 1px solid #ddd;"><strong>Instructor:</strong> [Pending Login]
-                        </td>
-                    </tr>
-                </table>
-
-                <div
-                    style="background-color: #f8f9fa; border: 1px solid #dee2e6; padding: 20px; margin-bottom: 30px; text-align: center; border-radius: 4px;">
-                    <h3 style="margin: 0; font-size: 22px; color: #2c3e50;" id="pdfTotalScore"></h3>
-                </div>
-
-                <div id="pdfQuestionsContent"></div>
-            </div>
         </div>
     </div>
 
     <script>
+        let currentEvaluationData = null;
+        let currentAssignmentDetails = null;
+
         async function submitAssignment(event) {
             event.preventDefault();
 
@@ -121,9 +85,11 @@
                     resultsDiv.className = 'mt-4';
 
                     let htmlContent = '';
-                    let pdfContent = '';
                     let totalScore = 0;
                     let totalMaxScore = 0;
+
+                    // Store for PDF Generation
+                    currentEvaluationData = data;
 
                     data.forEach((item, index) => {
                         if (item.error) {
@@ -135,14 +101,6 @@
                                         <p><strong>A:</strong> ${item.answer}</p>
                                         <p class="text-danger"><strong>Error:</strong> ${item.error}</p>
                                     </div>
-                                </div>
-                            `;
-                            pdfContent += `
-                                <div style="margin-bottom: 30px; padding: 15px; border: 1px solid #dc3545; border-radius: 4px; page-break-inside: avoid;">
-                                    <h4 style="margin-top: 0; color: #dc3545; border-bottom: 1px solid #dc3545; padding-bottom: 5px;">Question ${index + 1}</h4>
-                                    <p style="margin: 10px 0;"><strong>Q:</strong> ${item.question}</p>
-                                    <p style="margin: 10px 0;"><strong>A:</strong> ${item.answer}</p>
-                                    <p style="color: #dc3545; margin: 10px 0;"><strong>Error:</strong> ${item.error}</p>
                                 </div>
                             `;
                             return;
@@ -191,58 +149,37 @@
                                 </div>
                             </div>
                         `;
-
-                        const correctPoints = (item.feedback.correct_points || []).map(p => `<li style="margin-bottom: 5px; color: #198754;">${p}</li>`).join('') || '<li style="margin-bottom: 5px; color: #6c757d;">None identified</li>';
-                        const missingPoints = (item.feedback.missing_points || []).map(p => `<li style="margin-bottom: 5px; color: #dc3545;">${p}</li>`).join('') || '<li style="margin-bottom: 5px; color: #6c757d;">None identified</li>';
-                        const improvements = (item.feedback.improvements || item.feedback.improvement_suggestions || []).map(p => `<li style="margin-bottom: 5px; color: #0d6efd;">${p}</li>`).join('') || '<li style="margin-bottom: 5px; color: #6c757d;">None</li>';
-
-                        pdfContent += `
-                            <div style="margin-bottom: 40px; padding: 25px; border: 1px solid #000; page-break-inside: avoid;">
-
-                                <div style="display:flex; justify-content:space-between; margin-bottom:15px;">
-                                    <h3 style="margin:0;">Question ${index + 1}</h3>
-                                    <h3 style="margin:0;">${item.score}/${item.max_score || 10}</h3>
-                                </div>
-
-                                <p><strong>Question:</strong> ${item.question}</p>
-                                <p><strong>Answer:</strong> ${item.answer}</p>
-
-                                <hr>
-
-                                <p><strong>Correct Points:</strong></p>
-                                <ul>${correctPoints}</ul>
-
-                                <p><strong>Missing Points:</strong></p>
-                                <ul>${missingPoints}</ul>
-
-                                <p><strong>Improvement Suggestions:</strong></p>
-                                <ul>${improvements}</ul>
-
-                            </div>
-                            `;
                     });
 
                     evalContent.innerHTML = htmlContent;
-                    document.getElementById('pdfQuestionsContent').innerHTML = pdfContent;
 
                     document.getElementById('evaluationSummary').innerHTML = `<strong>🏆 Total Assignment Score: ${totalScore} / ${totalMaxScore}</strong>`;
-                    document.getElementById('pdfTotalScore').innerHTML = `Overall Score: ${totalScore} / ${totalMaxScore}`;
 
                     const selectEl = document.querySelector('select[name="assignment_id"]');
                     const selectedOption = selectEl.options[selectEl.selectedIndex];
+                    let assignmentName = "Unknown Assignment";
+                    let courseName = "Unknown Course";
+                    
                     if (selectedOption && selectedOption.value) {
                         const text = selectedOption.innerText;
                         const match = text.match(/^(.*?)\s*\((.*?)\)$/);
                         if (match) {
-                            document.getElementById('pdfAssignmentName').innerText = match[1];
-                            document.getElementById('pdfCourseName').innerText = match[2];
+                            assignmentName = match[1];
+                            courseName = match[2];
                         } else {
-                            document.getElementById('pdfAssignmentName').innerText = text;
-                            document.getElementById('pdfCourseName').innerText = "Unknown";
+                            assignmentName = text;
+                            courseName = "Unknown";
                         }
                     }
 
-                    document.getElementById('pdfDate').innerText = new Date().toLocaleDateString();
+                    currentAssignmentDetails = {
+                        assignmentName: assignmentName,
+                        courseName: courseName,
+                        totalScore: totalScore,
+                        totalMaxScore: totalMaxScore,
+                        date: new Date().toLocaleDateString()
+                    };
+
                     document.getElementById('evaluationSummary').style.display = 'block';
                     document.getElementById('downloadPdfBtn').style.display = 'block';
 
@@ -258,34 +195,166 @@
         }
 
         function downloadPDF() {
-            const template = document.getElementById('pdfTemplate');
-            template.style.display = 'block'; // Make it visible for capture
+            if (!currentEvaluationData || !currentAssignmentDetails) {
+                alert("No evaluation data available to generate PDF.");
+                return;
+            }
 
-            const btn = document.getElementById('downloadPdfBtn');
-            btn.style.display = 'none'; // hide button from PDF
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF('p', 'mm', 'a4');
 
-            const opt = {
-                margin: 10,
-                filename: 'Academic_Evaluation_Report.pdf',
-                image: { type: 'jpeg', quality: 1 },
+            const pageWidth = doc.internal.pageSize.getWidth();
+            const margin = 14;
 
-                html2canvas: {
-                    scale: 3,   // 🔥 BIG FIX (makes it large + sharp)
-                    useCORS: true
+            // 1. Header Section
+            doc.setFontSize(18);
+            doc.setFont('helvetica', 'bold');
+            doc.text("Machine Learning Assignment Report", pageWidth / 2, 20, { align: 'center' });
+
+            doc.setFontSize(10);
+            doc.setFont('helvetica', 'normal');
+            doc.text(`Generated on: ${currentAssignmentDetails.date}`, pageWidth / 2, 26, { align: 'center' });
+
+            // 2. Assignment Information Table
+            doc.autoTable({
+                startY: 32,
+                theme: 'grid',
+                head: [],
+                body: [
+                    [{ content: 'Assignment:', fontStyle: 'bold' }, currentAssignmentDetails.assignmentName],
+                    [{ content: 'Course:', fontStyle: 'bold' }, currentAssignmentDetails.courseName],
+                    [{ content: 'Student Name:', fontStyle: 'bold' }, '{{ current_user.name or current_user.id }}']
+                ],
+                styles: { fontSize: 10, cellPadding: 3 },
+                columnStyles: {
+                    0: { cellWidth: 35 }
                 },
-
-                jsPDF: {
-                    unit: 'mm',
-                    format: 'a4',
-                    orientation: 'portrait'
-                },
-                pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
-            };
-
-            html2pdf().set(opt).from(template).save().then(() => {
-                template.style.display = 'none'; // Hide it again after capture
-                btn.style.display = 'block'; // show button again
+                margin: { left: margin, right: margin }
             });
+
+            // 3. Overall Score Section
+            doc.autoTable({
+                startY: doc.lastAutoTable.finalY + 8,
+                theme: 'plain',
+                body: [
+                    [`Overall Score: ${currentAssignmentDetails.totalScore} / ${currentAssignmentDetails.totalMaxScore}`]
+                ],
+                styles: { 
+                    fontSize: 14, 
+                    fontStyle: 'bold', 
+                    fillColor: [248, 249, 250], 
+                    textColor: [44, 62, 80], 
+                    cellPadding: 5, 
+                    halign: 'center',
+                    lineColor: [222, 226, 230],
+                    lineWidth: 0.1
+                },
+                margin: { left: margin, right: margin }
+            });
+
+            let finalY = doc.lastAutoTable.finalY + 12;
+
+            // 4. Questions Section
+            currentEvaluationData.forEach((item, index) => {
+                // Header (Question # and Score)
+                doc.autoTable({
+                    startY: finalY,
+                    theme: 'plain',
+                    head: [
+                        [
+                            { content: `Question ${index + 1}`, styles: { halign: 'left', fontStyle: 'bold' } }, 
+                            { content: `Score: ${item.score || 0}/${item.max_score || 10}`, styles: { halign: 'right', fontStyle: 'bold' } }
+                        ]
+                    ],
+                    headStyles: { fillColor: [30, 41, 59], textColor: [255, 255, 255], fontSize: 13, cellPadding: 5 },
+                    margin: { left: margin, right: margin },
+                    pageBreak: 'auto'
+                });
+
+                if (item.error) {
+                    doc.autoTable({
+                        startY: doc.lastAutoTable.finalY,
+                        theme: 'grid',
+                        body: [
+                            [`Question: ${item.question}`],
+                            [`Student Answer: ${item.answer}`],
+                            [`Error: ${item.error}`]
+                        ],
+                        styles: { fontSize: 10, cellPadding: 5, textColor: [220, 38, 38] },
+                        margin: { left: margin, right: margin },
+                        pageBreak: 'auto'
+                    });
+                    finalY = doc.lastAutoTable.finalY + 12;
+                    return;
+                }
+
+                // Question & Answer (Full width)
+                doc.autoTable({
+                    startY: doc.lastAutoTable.finalY,
+                    theme: 'grid',
+                    body: [
+                        [{ content: `Question:\n${item.question}`, styles: { fontStyle: 'bold', textColor: [51, 65, 85] } }],
+                        [{ content: `Student Answer:\n${item.answer || 'No answer provided'}`, styles: { textColor: [71, 85, 105] } }]
+                    ],
+                    styles: { fontSize: 10, cellPadding: 6, lineColor: [226, 232, 240], lineWidth: 0.5 },
+                    margin: { left: margin, right: margin },
+                    pageBreak: 'auto'
+                });
+
+                const correctPoints = (item.feedback.correct_points || []).length > 0 ? 
+                    (item.feedback.correct_points || []).map(p => `• ${p}`).join('\n') : 'None identified';
+                
+                const missingPoints = (item.feedback.missing_points || []).length > 0 ? 
+                    (item.feedback.missing_points || []).map(p => `• ${p}`).join('\n') : 'None identified';
+
+                // Feedback (Two columns)
+                doc.autoTable({
+                    startY: doc.lastAutoTable.finalY,
+                    theme: 'grid',
+                    head: [['Correct Points', 'Missing Points']],
+                    body: [[correctPoints, missingPoints]],
+                    headStyles: { fillColor: [248, 250, 252], textColor: [51, 65, 85], fontStyle: 'bold', fontSize: 11 },
+                    bodyStyles: { fontSize: 10, cellPadding: 6, valign: 'top' },
+                    columnStyles: {
+                        0: { cellWidth: (pageWidth - 2 * margin) / 2, textColor: [5, 150, 105] },
+                        1: { cellWidth: (pageWidth - 2 * margin) / 2, textColor: [220, 38, 38] }
+                    },
+                    styles: { lineColor: [226, 232, 240], lineWidth: 0.5 },
+                    margin: { left: margin, right: margin },
+                    pageBreak: 'auto'
+                });
+
+                const improvementsList = item.feedback.improvements || item.feedback.improvement_suggestions || [];
+                const improvements = improvementsList.length > 0 ? 
+                    improvementsList.map(p => `• ${p}`).join('\n') : 'None';
+
+                // Improvements (Full width)
+                doc.autoTable({
+                    startY: doc.lastAutoTable.finalY,
+                    theme: 'grid',
+                    head: [['Improvement Suggestions']],
+                    body: [[improvements]],
+                    headStyles: { fillColor: [240, 249, 255], textColor: [3, 105, 161], fontStyle: 'bold', fontSize: 11 },
+                    bodyStyles: { fontSize: 10, cellPadding: 6, textColor: [14, 116, 144] },
+                    styles: { lineColor: [226, 232, 240], lineWidth: 0.5 },
+                    margin: { left: margin, right: margin },
+                    pageBreak: 'auto'
+                });
+                
+                finalY = doc.lastAutoTable.finalY + 12;
+            });
+
+            // 5. Footer with Page Numbers
+            const pageCount = doc.internal.getNumberOfPages();
+            for (let i = 1; i <= pageCount; i++) {
+                doc.setPage(i);
+                doc.setFontSize(9);
+                doc.setTextColor(100);
+                doc.text(`Page ${i} of ${pageCount}`, pageWidth / 2, doc.internal.pageSize.getHeight() - 10, { align: 'center' });
+            }
+
+            // Save PDF
+            doc.save('Academic_Evaluation_Report.pdf');
         }
     </script>
 </body>
