@@ -119,6 +119,13 @@
                                     <p class="mb-2"><strong>Q:</strong> ${item.question}</p>
                                     <p class="mb-3 text-muted"><strong>Your Answer:</strong> ${item.answer || '<em>No answer provided</em>'}</p>
                                     
+                                    ${item.plagiarism && item.plagiarism.is_plagiarized ? `
+                                        <div class="alert alert-danger mb-3 p-2">
+                                            <strong>[PLAGIARISM DETECTED]</strong> 
+                                            Similarity score of ${(item.plagiarism.similarity_score * 100).toFixed(1)}% with a previous submission. Score has been reduced to 0.
+                                        </div>
+                                    ` : ''}
+
                                     <div class="mb-3">
                                         ${(item.concepts || []).map(c => `<span class="badge bg-info text-dark me-1">${c}</span>`).join('')}
                                         ${(item.mistakes || []).map(m => `<span class="badge bg-danger me-1">${m}</span>`).join('')}
@@ -256,6 +263,14 @@
 
             // 4. Questions Section
             currentEvaluationData.forEach((item, index) => {
+                
+                // Prevent orphan headers: check if there's enough space left on the page
+                const pageHeight = doc.internal.pageSize.getHeight();
+                if (finalY > pageHeight - 60) {
+                    doc.addPage();
+                    finalY = 20;
+                }
+
                 // Header (Question # and Score)
                 doc.autoTable({
                     startY: finalY,
@@ -289,13 +304,19 @@
                 }
 
                 // Question & Answer (Full width)
+                const bodyRows = [
+                    [{ content: `Question:\n${item.question}`, styles: { fontStyle: 'bold', textColor: [51, 65, 85] } }],
+                    [{ content: `Student Answer:\n${item.answer || 'No answer provided'}`, styles: { textColor: [71, 85, 105] } }]
+                ];
+
+                if (item.plagiarism && item.plagiarism.is_plagiarized) {
+                    bodyRows.push([{ content: `[PLAGIARISM DETECTED] Similarity score of ${(item.plagiarism.similarity_score * 100).toFixed(1)}%. Score has been reduced to 0.`, styles: { textColor: [220, 38, 38], fontStyle: 'bold' } }]);
+                }
+
                 doc.autoTable({
                     startY: doc.lastAutoTable.finalY,
                     theme: 'grid',
-                    body: [
-                        [{ content: `Question:\n${item.question}`, styles: { fontStyle: 'bold', textColor: [51, 65, 85] } }],
-                        [{ content: `Student Answer:\n${item.answer || 'No answer provided'}`, styles: { textColor: [71, 85, 105] } }]
-                    ],
+                    body: bodyRows,
                     styles: { fontSize: 10, cellPadding: 6, lineColor: [226, 232, 240], lineWidth: 0.5 },
                     margin: { left: margin, right: margin },
                     pageBreak: 'auto'

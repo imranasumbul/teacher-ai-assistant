@@ -20,8 +20,12 @@ from google import genai
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 
 # DB init
-from db import init_db, get_session, User, Question, Assignment
+from db import init_db, get_session, User, Question, Assignment, StudentSubmission
 init_db()
+
+# Plagiarism checker
+from plagiarism_checker import check_plagiarism
+
 
 # Concept catalog service
 from concept_service import get_or_create_concept_ids, identify_concepts_from_vector
@@ -112,7 +116,10 @@ def student_doubt():
     return render_template("student_doubt.html")
 
 @app.route('/assignment_ques_rubrics_upload')
+@login_required
 def assignment_ques_rubrics_upload():
+    if current_user.role != "teacher":
+        return redirect(url_for("home"))
     return render_template('assignment_ques_rubrics_upload.html')
 
 @app.route('/assignment_answer_upload')
@@ -276,6 +283,17 @@ def evaluate_assignment_route():
     if not assignment_id:
         return jsonify({"error": "assignment_id is required"}), 400
 
+    db = get_session()
+    try:
+        existing_submission = db.query(StudentSubmission).filter_by(
+            student_id=current_user.id,
+            assignment_id=assignment_id
+        ).first()
+        if existing_submission:
+            return jsonify({"error": "You have already submitted this assignment. Multiple submissions are not allowed."}), 403
+    finally:
+        db.close()
+
     if file.filename == "":
         return jsonify({"error": "No file selected"}), 400
 
@@ -388,6 +406,49 @@ def evaluate_assignment_route():
 
             max_score = item.get("max_score", 10)
 
+            # Plagiarism check MUST happen before logging/mastery
+            plagiarism_result = {
+                "is_plagiarized": False,
+                "matched_student_id": None,
+                "similarity_score": 0.0
+            }
+            if ans.strip():
+                ans_embeddings = generate_embeddings([ans])
+                if ans_embeddings:
+                    ans_vec = ans_embeddings[0][0]
+                    # Fetch past submissions for this assignment and question
+                    db = get_session()
+                    try:
+                        past_subs = db.query(StudentSubmission).filter(
+                            StudentSubmission.assignment_id == assignment_id,
+                            StudentSubmission.question_text == q.question_text,
+                            StudentSubmission.student_id != student_id
+                        ).all()
+                        
+                        plagiarism_result = check_plagiarism(ans_vec, past_subs)
+                        
+                        # Save current submission
+                        new_sub = StudentSubmission(
+                            assignment_id=assignment_id,
+                            student_id=student_id,
+                            question_text=q.question_text,
+                            answer_text=ans,
+                            embedding_json=json.dumps(ans_vec.tolist())
+                        )
+                        db.add(new_sub)
+                        db.commit()
+                    except Exception as pe:
+                        print("Plagiarism check error:", pe)
+                    finally:
+                        db.close()
+
+            # Deduct marks if plagiarized
+            if plagiarism_result["is_plagiarized"]:
+                score = 0
+                if "missing_points" not in item:
+                    item["missing_points"] = []
+                item["missing_points"].append("Zero marks awarded due to plagiarism detected.")
+
             if concepts:
 
                 concept_ids = get_or_create_concept_ids(
@@ -441,7 +502,8 @@ def evaluate_assignment_route():
                     "correct_points": item.get("correct_points", []),
                     "missing_points": item.get("missing_points", []),
                     "improvements": item.get("improvements", [])
-                }
+                },
+                "plagiarism": plagiarism_result
             })
 
         return jsonify(final_results), 200

@@ -328,3 +328,50 @@ def get_session():
         raise RuntimeError("DB not initialized. Call init_db() first.")
     return _SessionLocal()
 
+# =========================================================
+#             PLAGIARISM SYSTEM
+# =========================================================
+
+class StudentSubmission(Base):
+    __tablename__ = "student_submissions"
+
+    submission_id: Mapped[int] = mapped_column(
+        Integer,
+        primary_key=True,
+        autoincrement=True
+    )
+
+    assignment_id: Mapped[int] = mapped_column(
+        Integer,
+        ForeignKey("assignments.assignment_id", ondelete="CASCADE"),
+        nullable=False
+    )
+
+    student_id: Mapped[str] = mapped_column(
+        String(64),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False
+    )
+
+    question_text: Mapped[str] = mapped_column(
+        Text,
+        nullable=False
+    )
+
+    answer_text: Mapped[str] = mapped_column(
+        Text,
+        nullable=False
+    )
+
+    # Store the 384-dimensional embedding vector as a JSON array string
+    embedding_json: Mapped[str] = mapped_column(
+        Text,
+        nullable=False
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=utcnow
+    )
+
+

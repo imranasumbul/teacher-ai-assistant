@@ -1,11 +1,14 @@
 from db import (
-    init_db, 
+    init_db,
     get_session,
     User,
     ConceptCatalog,
     ConceptMastery,
     MistakePattern,
     Interaction,
+    Assignment,
+    Question,
+    StudentSubmission,
 )
 init_db() 
 session = get_session()
@@ -81,7 +84,57 @@ for i in interactions:
         f"concepts={i.concepts_json}, "
         f"time={i.created_at}"
     )
+# -------------------------------------------------
+print("\n================ ASSIGNMENTS ================\n")
+assignments = session.query(Assignment).all()
 
+if not assignments:
+    print("No assignments found.")
+
+for a in assignments:
+    print(
+        f"assignment_id={a.assignment_id}, "
+        f"title={a.title}, "
+        f"subject={a.subject}, "
+        f"created_at={a.created_at}"
+    )
+
+
+# -------------------------------------------------
+print("\n================ QUESTIONS ================\n")
+questions = session.query(Question).all()
+
+if not questions:
+    print("No questions found.")
+
+for q in questions:
+    print(
+        f"question_id={q.question_id}, "
+        f"assignment_id={q.assignment_id}, "
+        f"subject={q.subject}, "
+        f"question={q.question_text}, "
+        f"rubric={q.rubric_text}, "
+        f"concepts={q.concept_ids_json}, "
+        f"created_at={q.created_at}"
+    )
+
+
+# -------------------------------------------------
+print("\n================ STUDENT SUBMISSIONS ================\n")
+submissions = session.query(StudentSubmission).all()
+
+if not submissions:
+    print("No submissions found.")
+
+for s in submissions:
+    print(
+        f"submission_id={s.submission_id}, "
+        f"assignment_id={s.assignment_id}, "
+        f"student_id={s.student_id}, "
+        f"question={s.question_text}, "
+        f"answer={s.answer_text[:100]}..., "
+        f"created_at={s.created_at}"
+    )
 # -------------------------------------------------
 session.close()
 print("\n✅ Done viewing database.\n")
