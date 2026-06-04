@@ -43,6 +43,15 @@ from personalization import (
 # Assignment checker
 from assignment_checker import evaluate_assignment_batch
 
+# Dashboard service
+from dashboard_service import (
+    get_class_engagement,
+    get_concept_mastery_stats,
+    get_common_mistakes,
+    search_concepts_by_subject,
+    get_concept_drilldown
+)
+
 app = Flask(__name__)
 app.config["SECRET_KEY"] = os.environ.get("FLASK_SECRET_KEY", "dev-secret-key-change-this-in-prod")
 
@@ -103,7 +112,7 @@ def home():
 def login_page():
     if current_user.is_authenticated:
         if current_user.role == "teacher":
-            return redirect(url_for("teacher_notes"))
+            return redirect(url_for("teacher_dashboard"))
         else:
             return redirect(url_for("student_doubt"))
     return render_template("login.html")
@@ -141,6 +150,71 @@ def teacher_notes():
     if current_user.role != "teacher":
         return redirect(url_for("home"))
     return render_template("teacher_notes.html")
+
+@app.route("/teacher_dashboard")
+@login_required
+def teacher_dashboard():
+    if current_user.role != "teacher":
+        return redirect(url_for("home"))
+    return render_template("teacher_dashboard.html")
+
+@app.route("/api/teacher/dashboard_data")
+@login_required
+def api_teacher_dashboard_data():
+    if current_user.role != "teacher":
+        return jsonify({"error": "Unauthorized"}), 403
+    
+    subject = current_user.subject or "Machine Learning" # default fallback
+    recent_param = request.args.get("recent", "true").lower() == "true"
+    
+    try:
+        engagement = get_class_engagement(subject)
+        mastery = get_concept_mastery_stats(subject, recent_only=recent_param)
+        mistakes = get_common_mistakes(subject, recent_only=recent_param)
+        
+        return jsonify({
+            "subject": subject,
+            "engagement": engagement,
+            "mastery": mastery,
+            "mistakes": mistakes
+        }), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/teacher/search_concepts")
+@login_required
+def api_teacher_search_concepts():
+    if current_user.role != "teacher":
+        return jsonify({"error": "Unauthorized"}), 403
+    
+    subject = current_user.subject or "Machine Learning"
+    q = request.args.get("q", "").strip()
+    
+    try:
+        results = search_concepts_by_subject(subject, q)
+        return jsonify(results), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/teacher/concept_drilldown")
+@login_required
+def api_teacher_concept_drilldown():
+    if current_user.role != "teacher":
+        return jsonify({"error": "Unauthorized"}), 403
+    
+    subject = current_user.subject or "Machine Learning"
+    concept_id_str = request.args.get("concept_id", "")
+    if not concept_id_str:
+        return jsonify({"error": "concept_id is required"}), 400
+        
+    try:
+        concept_id = int(concept_id_str)
+        drilldown = get_concept_drilldown(subject, concept_id)
+        return jsonify(drilldown), 200
+    except ValueError:
+        return jsonify({"error": "concept_id must be an integer"}), 400
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 # =========================
 # Auth API Endpoints
@@ -199,7 +273,7 @@ def login():
         login_user(user) # Saves active session in client cookie
         
         # Guide frontend where to redirect based on role
-        redirect_url = "/teacher_notes" if user.role == "teacher" else "/student_doubt"
+        redirect_url = "/teacher_dashboard" if user.role == "teacher" else "/student_doubt"
         return jsonify({"message": "Login successful", "role": user.role, "redirect": redirect_url}), 200
     finally:
         session.close()

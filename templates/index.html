@@ -73,6 +73,14 @@
       <p>Upload class notes or syllabi for AI processing, enhancing the student learning experience.</p>
       <a href="/teacher_notes" class="btn blue">ENTER PORTAL →</a>
     </div>
+    {% if current_user.is_authenticated and current_user.role == 'teacher' %}
+    <div class="card blue" style="border-color: #8e44ad; background: #faf0ff;">
+      <div class="icon blue" style="background: #8e44ad;">📊</div>
+      <h2>Teacher's Dashboard</h2>
+      <p>View class-wide engagement analytics, conceptual mastery, and mistake patterns.</p>
+      <a href="/teacher_dashboard" class="btn blue" style="background: #8e44ad;">ENTER DASHBOARD →</a>
+    </div>
+    {% endif %}
   </div>
 </body>
 </html>
