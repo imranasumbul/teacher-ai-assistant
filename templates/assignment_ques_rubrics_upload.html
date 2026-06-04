@@ -6,30 +6,90 @@
     <title>Assignment Upload</title>
 </head>
 
-<body style="font-family: Arial; background:#eef3fb; padding:40px;">
+<body
+    style="font-family: 'Segoe UI', sans-serif; background: linear-gradient(135deg, #e8f1ff 0%, #e6f2ff 50%, #f0f6ff 100%); padding: 40px 20px; min-height: 100vh;">
 
-    <a href="/teacher_dashboard" style="display:inline-block; margin-bottom: 20px; text-decoration: none; color: #2980b9; font-weight: bold;">← Back to Dashboard</a>
+    <div style="max-width: 700px; margin: 0 auto;">
+        <a href="/teacher_dashboard"
+            style="display:inline-block; margin-bottom: 32px; text-decoration: none; color: #2980b9; font-weight: 600; font-size: 0.95rem; padding: 8px 0;">←
+            Back to Dashboard</a>
 
-    <h2>Upload Assignment + Rubric</h2>
+        <div
+            style="background: white; padding: 40px; border-radius: 16px; box-shadow: 0 8px 24px rgba(41, 128, 185, 0.15); border-left: 6px solid #2980b9;">
+            <h2 style="color: #2c3e50; font-weight: 700; font-size: 1.8rem; margin-bottom: 36px; text-align: center;">📋
+                Upload Assignment + Rubric</h2>
 
-    <form id="assignmentForm" onsubmit="uploadAssignment(event)">
-        <label>Subject</label>
-        <select name="subject" required>
-            <option value="ML">Machine Learning</option>
-            <option value="DBMS">DBMS</option>
-            <option value="OS">Operating Systems</option>
-        </select>
-        <label>Upload Assignment PDF:</label><br>
-        <input type="file" name="assignment_file" required><br><br>
+            <form id="assignmentForm" onsubmit="uploadAssignment(event)">
+                <div style="margin-bottom: 28px;">
+                    <label
+                        style="display: block; font-weight: 700; color: #2c3e50; margin-bottom: 12px; font-size: 1rem;">Subject</label>
+                    <select name="subject" required
+                        style="width: 100%; padding: 12px 14px; border: 2px solid #d0d8e0; border-radius: 8px; background: #f8faff; font-size: 0.95rem; color: #2c3e50; cursor: pointer; transition: all 0.2s;"
+                        onfocus="this.style.borderColor='#2980b9'; this.style.boxShadow='0 0 0 3px rgba(41, 128, 185, 0.1)'; this.style.background='#fff';"
+                        onblur="this.style.borderColor='#d0d8e0'; this.style.boxShadow='none'; this.style.background='#f8faff';">
+                        <option value="ML">Machine Learning</option>
+                        <option value="DBMS">DBMS</option>
+                        <option value="OS">Operating Systems</option>
+                    </select>
+                </div>
 
-        <label>Upload Rubric PDF/TXT:</label><br>
-        <input type="file" name="rubric_file" required><br><br>
+                <div style="margin-bottom: 28px;">
+                    <label
+                        style="display: block; font-weight: 700; color: #2c3e50; margin-bottom: 12px; font-size: 1rem;">📄
+                        Upload Assignment PDF</label>
+                    <input type="file" name="assignment_file" required
+                        style="width: 100%; padding: 12px 14px; border: 2px solid #d0d8e0; border-radius: 8px; background: #f8faff; cursor: pointer; transition: all 0.2s;"
+                        onfocus="this.style.borderColor='#2980b9'; this.style.boxShadow='0 0 0 3px rgba(41, 128, 185, 0.1)'; this.style.background='#fff';"
+                        onblur="this.style.borderColor='#d0d8e0'; this.style.boxShadow='none'; this.style.background='#f8faff';">
+                </div>
 
-        <button type="submit">Publish Assignment</button>
+                <div style="margin-bottom: 32px;">
+                    <label
+                        style="display: block; font-weight: 700; color: #2c3e50; margin-bottom: 12px; font-size: 1rem;">📋
+                        Upload Rubric PDF/TXT</label>
+                    <input type="file" name="rubric_file" required
+                        style="width: 100%; padding: 12px 14px; border: 2px solid #d0d8e0; border-radius: 8px; background: #f8faff; cursor: pointer; transition: all 0.2s;"
+                        onfocus="this.style.borderColor='#2980b9'; this.style.boxShadow='0 0 0 3px rgba(41, 128, 185, 0.1)'; this.style.background='#fff';"
+                        onblur="this.style.borderColor='#d0d8e0'; this.style.boxShadow='none'; this.style.background='#f8faff';">
+                </div>
 
-    </form>
+                <button type="submit"
+                    style="width: 100%; padding: 16px 24px; background: linear-gradient(135deg, #2980b9 0%, #2471a3 100%); color: white; border: none; border-radius: 8px; font-weight: 700; font-size: 1rem; cursor: pointer; transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1); box-shadow: 0 6px 20px rgba(41, 128, 185, 0.3); letter-spacing: 0.5px;"
+                    onmouseover="this.style.transform='translateY(-3px)'; this.style.boxShadow='0 10px 28px rgba(41, 128, 185, 0.4)';"
+                    onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 6px 20px rgba(41, 128, 185, 0.3)';">✨
+                    Publish Assignment</button>
+            </form>
 
-    <div id="result" style="margin-top:20px;"></div>
+            <div id="result"
+                style="margin-top: 36px; padding: 20px 24px; border-radius: 12px; display: none; animation: slideIn 0.3s ease; border-left: 6px solid #2980b9;">
+            </div>
+        </div>
+    </div>
+
+    <style>
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        pre {
+            background: #f0f6ff;
+            padding: 16px;
+            border-radius: 8px;
+            color: #2c3e50;
+            border-left: 6px solid #2980b9;
+            overflow-x: auto;
+            font-size: 0.9rem;
+            line-height: 1.6;
+        }
+    </style>
 
     <script>
         async function uploadAssignment(event) {
@@ -40,6 +100,10 @@
 
             const formData = new FormData(form);
 
+            resultDiv.style.display = 'block';
+            resultDiv.style.background = '#e3f2fd';
+            resultDiv.style.color = '#1976d2';
+            resultDiv.style.borderColor = '#90caf9';
             resultDiv.innerHTML = "⏳ Uploading...";
 
             try {
@@ -51,16 +115,25 @@
                 const data = await res.json();
 
                 if (res.ok) {
+                    resultDiv.style.background = '#e3f2fd';
+                    resultDiv.style.color = '#1565c0';
+                    resultDiv.style.borderColor = '#64b5f6';
                     resultDiv.innerHTML = `
-                <b>✅ Published!</b><br><br>
-                <b>Questions:</b><br>
-                <pre>${JSON.stringify(data.questions, null, 2)}</pre>
-            `;
+                        <b style="font-size: 1.1rem;">✅ Published Successfully!</b><br><br>
+                        <b>Questions Extracted:</b><br>
+                        <pre>${JSON.stringify(data.questions, null, 2)}</pre>
+                    `;
                 } else {
+                    resultDiv.style.background = '#ffebee';
+                    resultDiv.style.color = '#c62828';
+                    resultDiv.style.borderColor = '#ef5350';
                     resultDiv.innerHTML = `<b>❌ Error:</b> ${JSON.stringify(data)}`;
                 }
 
             } catch (err) {
+                resultDiv.style.background = '#ffebee';
+                resultDiv.style.color = '#c62828';
+                resultDiv.style.borderColor = '#ef5350';
                 resultDiv.innerHTML = "❌ Server error";
             }
         }

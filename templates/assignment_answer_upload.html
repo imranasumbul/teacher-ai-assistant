@@ -7,24 +7,173 @@
     <link rel="stylesheet" href="/static/css/static.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+    <style>
+        body {
+            background: linear-gradient(135deg, #e8f1ff 0%, #e6f2ff 50%, #f0f6ff 100%) !important;
+            padding-top: 20px !important;
+        }
+
+        .container {
+            padding: 20px;
+        }
+
+        .page-title {
+            color: #2c3e50 !important;
+            font-weight: 700 !important;
+            margin-bottom: 36px !important;
+            margin-top: 0px !important;
+            font-size: 1.8rem !important;
+        }
+
+        .form-label {
+            color: #2c3e50 !important;
+            font-weight: 700 !important;
+            margin-bottom: 12px !important;
+            font-size: 1rem !important;
+        }
+
+        .form-select,
+        .form-control {
+            border: 2px solid #d0d8e0 !important;
+            border-radius: 8px !important;
+            transition: all 0.2s !important;
+            background: #f8faff !important;
+            padding: 12px 14px !important;
+        }
+
+        .form-select:focus,
+        .form-control:focus {
+            border-color: #2980b9 !important;
+            box-shadow: 0 0 0 4px rgba(41, 128, 185, 0.15) !important;
+            background: #fff !important;
+        }
+
+        .mb-3 {
+            margin-bottom: 28px !important;
+        }
+
+        .card {
+            border-left: 6px solid #2980b9 !important;
+            box-shadow: 0 8px 24px rgba(41, 128, 185, 0.15) !important;
+            padding: 40px !important;
+            border-radius: 16px !important;
+        }
+
+        .card-header {
+            background: linear-gradient(135deg, #2980b9 0%, #2471a3 100%) !important;
+            color: white !important;
+            padding: 16px 20px !important;
+            font-weight: 700 !important;
+            border-radius: 8px !important;
+            margin-bottom: 20px !important;
+        }
+
+        .card-body {
+            padding: 0 !important;
+        }
+
+        .bg-success {
+            background: linear-gradient(135deg, #27ae60 0%, #229954 100%) !important;
+        }
+
+        .bg-info {
+            background: #e3f2fd !important;
+            color: #1976d2 !important;
+            border: 1px solid #90caf9 !important;
+        }
+
+        .text-dark {
+            color: #1976d2 !important;
+        }
+
+        .btn {
+            padding: 16px 24px !important;
+            font-weight: 700 !important;
+            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1) !important;
+        }
+
+        .btn-yellow {
+            background: linear-gradient(135deg, #2980b9 0%, #2471a3 100%) !important;
+            box-shadow: 0 4px 12px rgba(41, 128, 185, 0.25) !important;
+        }
+
+        .btn-yellow:hover {
+            transform: translateY(-2px) !important;
+            box-shadow: 0 6px 18px rgba(41, 128, 185, 0.35) !important;
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%) !important;
+        }
+
+        h4 {
+            color: #2c3e50 !important;
+            font-weight: 700 !important;
+            margin-bottom: 16px !important;
+        }
+
+        h6 {
+            color: #2980b9 !important;
+            font-weight: 700 !important;
+        }
+
+        .mt-4 {
+            margin-top: 36px !important;
+        }
+
+        .border-success {
+            border-color: #27ae60 !important;
+        }
+
+        .border-danger {
+            border-color: #e74c3c !important;
+        }
+
+        .bg-danger {
+            background: #ffebee !important;
+            color: #c62828 !important;
+        }
+
+        .text-danger {
+            color: #c62828 !important;
+        }
+
+        .text-success {
+            color: #27ae60 !important;
+        }
+
+        .badge {
+            padding: 6px 12px !important;
+            border-radius: 8px !important;
+            font-weight: 600 !important;
+        }
+
+        .badge.bg-info {
+            background: #e3f2fd !important;
+            color: #1565c0 !important;
+        }
+
+        .alert {
+            border-radius: 12px !important;
+            padding: 20px 24px !important;
+            margin-bottom: 20px !important;
+            border-left: 6px solid #2980b9 !important;
+        }
+    </style>
 </head>
 
-<body class="bg-page-yellow">
+<body style="background: linear-gradient(135deg, #e8f1ff 0%, #e6f2ff 50%, #f0f6ff 100%);">
 
-    <nav class="navbar navbar-dark bg-navbar-yellow">
-        <div class="container">
-            <span class="navbar-brand text-dark">Assignment Submission</span>
-            <a href="/" class="btn btn-dark btn-sm">Dashboard</a>
-        </div>
-    </nav>
+    <div class="container" style="max-width: 900px; margin: 0 auto; padding: 40px 20px;">
+        <a href="/"
+            style="display:inline-block; margin-bottom: 32px; text-decoration: none; color: #2980b9; font-weight: 600; font-size: 0.95rem; padding: 8px 0;">←
+            Back to Dashboard</a>
+        <h3 class="page-title" style="margin-top: 0;">📋 Upload Assignment Answer</h3>
 
-    <div class="container">
-        <h3 class="page-title">Upload Assignment</h3>
-
-        <div class="card p-4">
+        <div class="card">
             <form id="assignmentForm" onsubmit="submitAssignment(event)">
                 <div class="mb-3">
-                    <label class="form-label">Select Assignment</label>
+                    <label class="form-label">📋 Select Assignment</label>
                     <select class="form-select" name="assignment_id" required>
                         <option value="" disabled selected>-- Choose an assignment --</option>
                         {% for a in assignments %}
@@ -34,11 +183,13 @@
                 </div>
 
                 <div class="mb-3">
-                    <label class="form-label">Upload Answer PDF (A1: A2: format)</label>
+                    <label class="form-label">📄 Upload Answer PDF (A1: A2: format)</label>
                     <input type="file" class="form-control" name="file" accept=".pdf,.txt" required>
                 </div>
 
-                <button type="submit" class="btn btn-yellow">Evaluate Answers</button>
+                <button type="submit" class="btn btn-yellow"
+                    style="width: 100%; color: white; margin-top: 32px; letter-spacing: 0.5px; font-size: 1rem;">✨
+                    Evaluate Answers</button>
             </form>
 
             <!-- Results Section -->
@@ -68,8 +219,9 @@
 
             // Show loading message
             resultsDiv.style.display = 'block';
-            resultsDiv.className = 'mt-4 p-3 rounded bg-info text-dark';
-            evalContent.innerHTML = '<strong>⏳ Evaluating assignment question by question... Please wait...</strong>';
+            resultsDiv.className = 'mt-4 p-3 rounded bg-info';
+            resultsDiv.style.borderLeft = '6px solid #2980b9';
+            evalContent.innerHTML = '<strong style="color: #1976d2;">⏳ Evaluating assignment question by question... Please wait...</strong>';
             document.getElementById('downloadPdfBtn').style.display = 'none';
             document.getElementById('evaluationSummary').style.display = 'none';
 
@@ -166,7 +318,7 @@
                     const selectedOption = selectEl.options[selectEl.selectedIndex];
                     let assignmentName = "Unknown Assignment";
                     let courseName = "Unknown Course";
-                    
+
                     if (selectedOption && selectedOption.value) {
                         const text = selectedOption.innerText;
                         const match = text.match(/^(.*?)\s*\((.*?)\)$/);
@@ -191,13 +343,17 @@
                     document.getElementById('downloadPdfBtn').style.display = 'block';
 
                 } else {
-                    resultsDiv.className = 'mt-4 p-3 rounded bg-danger text-white';
-                    evalContent.innerHTML = `<strong>❌ Error:</strong> ${data.error || 'Unknown error occurred.'}`;
+                    resultsDiv.className = 'mt-4 p-3 rounded';
+                    resultsDiv.style.background = '#ffebee';
+                    resultsDiv.style.borderLeft = '6px solid #e74c3c';
+                    evalContent.innerHTML = `<strong style="color: #c62828;">❌ Error:</strong> <span style="color: #c62828;">${data.error || 'Unknown error occurred.'}</span>`;
                 }
 
             } catch (error) {
-                resultsDiv.className = 'mt-4 p-3 rounded bg-danger text-white';
-                evalContent.innerHTML = `<strong>❌ Connection Error:</strong> ${error.message}`;
+                resultsDiv.className = 'mt-4 p-3 rounded';
+                resultsDiv.style.background = '#ffebee';
+                resultsDiv.style.borderLeft = '6px solid #e74c3c';
+                evalContent.innerHTML = `<strong style="color: #c62828;">❌ Connection Error:</strong> <span style="color: #c62828;">${error.message}</span>`;
             }
         }
 
@@ -246,12 +402,12 @@
                 body: [
                     [`Overall Score: ${currentAssignmentDetails.totalScore} / ${currentAssignmentDetails.totalMaxScore}`]
                 ],
-                styles: { 
-                    fontSize: 14, 
-                    fontStyle: 'bold', 
-                    fillColor: [248, 249, 250], 
-                    textColor: [44, 62, 80], 
-                    cellPadding: 5, 
+                styles: {
+                    fontSize: 14,
+                    fontStyle: 'bold',
+                    fillColor: [248, 249, 250],
+                    textColor: [44, 62, 80],
+                    cellPadding: 5,
                     halign: 'center',
                     lineColor: [222, 226, 230],
                     lineWidth: 0.1
@@ -263,7 +419,7 @@
 
             // 4. Questions Section
             currentEvaluationData.forEach((item, index) => {
-                
+
                 // Prevent orphan headers: check if there's enough space left on the page
                 const pageHeight = doc.internal.pageSize.getHeight();
                 if (finalY > pageHeight - 60) {
@@ -277,7 +433,7 @@
                     theme: 'plain',
                     head: [
                         [
-                            { content: `Question ${index + 1}`, styles: { halign: 'left', fontStyle: 'bold' } }, 
+                            { content: `Question ${index + 1}`, styles: { halign: 'left', fontStyle: 'bold' } },
                             { content: `Score: ${item.score || 0}/${item.max_score || 10}`, styles: { halign: 'right', fontStyle: 'bold' } }
                         ]
                     ],
@@ -322,10 +478,10 @@
                     pageBreak: 'auto'
                 });
 
-                const correctPoints = (item.feedback.correct_points || []).length > 0 ? 
+                const correctPoints = (item.feedback.correct_points || []).length > 0 ?
                     (item.feedback.correct_points || []).map(p => `• ${p}`).join('\n') : 'None identified';
-                
-                const missingPoints = (item.feedback.missing_points || []).length > 0 ? 
+
+                const missingPoints = (item.feedback.missing_points || []).length > 0 ?
                     (item.feedback.missing_points || []).map(p => `• ${p}`).join('\n') : 'None identified';
 
                 // Feedback (Two columns)
@@ -346,7 +502,7 @@
                 });
 
                 const improvementsList = item.feedback.improvements || item.feedback.improvement_suggestions || [];
-                const improvements = improvementsList.length > 0 ? 
+                const improvements = improvementsList.length > 0 ?
                     improvementsList.map(p => `• ${p}`).join('\n') : 'None';
 
                 // Improvements (Full width)
@@ -361,7 +517,7 @@
                     margin: { left: margin, right: margin },
                     pageBreak: 'auto'
                 });
-                
+
                 finalY = doc.lastAutoTable.finalY + 12;
             });
 

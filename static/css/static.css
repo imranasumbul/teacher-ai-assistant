@@ -76,13 +76,12 @@ body {
 }
 
 .btn-yellow {
-    background-color: #f1c40f;
-    color: #333;
+    background: linear-gradient(135deg, #2980b9 0%, #2471a3 100%) !important;
+    color: #fff !important;
 }
 
 .btn-yellow:hover {
-    background-color: #d4ac0d;
-    color: #333;
+    opacity: 0.9 !important;
 }
 
 /* Icon styling */
@@ -106,26 +105,26 @@ body {
 
 /* Page Backgrounds */
 .bg-page-blue {
-    background-color: #f2f7ff;
+    background: linear-gradient(135deg, #e8f1ff 0%, #e6f2ff 50%, #f0f6ff 100%);
 }
 
 .bg-page-green {
-    background-color: #f1fbf5;
+    background: linear-gradient(135deg, #e8f1ff 0%, #e6f2ff 50%, #f0f6ff 100%);
 }
 
 .bg-page-yellow {
-    background-color: #fff9e6;
+    background: linear-gradient(135deg, #e8f1ff 0%, #e6f2ff 50%, #f0f6ff 100%);
 }
 
 /* Navbar Colors */
 .bg-navbar-blue {
-    background-color: #4a90e2 !important;
+    background: linear-gradient(135deg, #2980b9 0%, #2c3e50 100%) !important;
 }
 
 .bg-navbar-green {
-    background-color: #2ecc71 !important;
+    background: linear-gradient(135deg, #2980b9 0%, #2c3e50 100%) !important;
 }
 
 .bg-navbar-yellow {
-    background-color: #f1c40f !important;
+    background: linear-gradient(135deg, #2980b9 0%, #2c3e50 100%) !important;
 }
