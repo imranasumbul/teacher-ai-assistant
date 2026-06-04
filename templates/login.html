@@ -1,188 +1,291 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Login / Sign Up | Teacher AI Assistant</title>
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
     body {
-      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-      background: radial-gradient(circle at 10% 20%, rgb(240, 243, 246) 0%, rgb(220, 227, 235) 90.1%);
+      font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: radial-gradient(circle at top left, #e8f2fb 0%, #d3e6f5 35%, #f4f8fc 100%);
       min-height: 100vh;
       display: flex;
       align-items: center;
       justify-content: center;
       padding: 30px 20px;
+      color: #1f3a5d;
     }
-    
+
     .auth-container {
       width: 100%;
-      max-width: 440px;
+      max-width: 520px;
       background: rgba(255, 255, 255, 0.95);
-      backdrop-filter: blur(10px);
-      border-radius: 20px;
-      box-shadow: 0 10px 30px rgba(41, 128, 185, 0.15);
-      border: 1px solid rgba(255, 255, 255, 0.8);
+      backdrop-filter: blur(12px);
+      border-radius: 28px;
+      box-shadow: 0 28px 80px rgba(33, 97, 161, 0.14);
+      border: 1px solid rgba(255, 255, 255, 0.82);
       overflow: hidden;
       transition: transform 0.3s ease, box-shadow 0.3s ease;
     }
-    
+
     .auth-container:hover {
       transform: translateY(-4px);
-      box-shadow: 0 15px 35px rgba(41, 128, 185, 0.22);
+      box-shadow: 0 32px 90px rgba(33, 97, 161, 0.18);
     }
-    
+
     .auth-header {
-      background: linear-gradient(135deg, #2980b9 0%, #2c3e50 100%);
-      padding: 36px 32px 30px;
+      background: linear-gradient(135deg, #0f4c81 0%, #1a73cc 100%);
+      padding: 36px 34px 24px;
       color: #fff;
       text-align: center;
       position: relative;
     }
-    
-    .auth-header h1 {
-      font-size: 1.6rem;
-      font-weight: 800;
-      margin-bottom: 6px;
-      letter-spacing: -0.5px;
+
+    .auth-header::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at top left, rgba(255, 255, 255, 0.22), transparent 30%);
+      pointer-events: none;
     }
-    
+
+    .auth-header h1 {
+      font-size: 2rem;
+      font-weight: 800;
+      margin-bottom: 10px;
+      letter-spacing: -0.5px;
+      position: relative;
+      z-index: 1;
+    }
+
     .auth-header p {
-      font-size: 0.85rem;
-      color: rgba(255, 255, 255, 0.8);
+      font-size: 0.96rem;
+      color: rgba(255, 255, 255, 0.92);
+      max-width: 84%;
+      margin: 0 auto;
+      position: relative;
+      z-index: 1;
+      line-height: 1.6;
+    }
+
+    .signal-row {
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+      margin-top: 18px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .signal-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 14px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.12);
+      font-size: 0.82rem;
+      color: rgba(255, 255, 255, 0.92);
+      font-weight: 600;
+      border: 1px solid rgba(255, 255, 255, 0.2);
     }
 
     .tabs {
-      display: flex;
-      background: #f8f9fa;
-      border-bottom: 1px solid #e9ecef;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      background: #f5f9ff;
+      border-bottom: 1px solid #dbeaf5;
     }
-    
+
     .tab {
-      flex: 1;
-      padding: 16px;
+      padding: 18px 20px;
       text-align: center;
       cursor: pointer;
       font-weight: 700;
-      font-size: 0.9rem;
-      color: #7f8c8d;
+      font-size: 0.94rem;
+      color: #556a85;
       transition: all 0.25s ease;
       border-bottom: 3px solid transparent;
     }
-    
+
     .tab:hover {
-      color: #2980b9;
-      background: rgba(41, 128, 185, 0.04);
+      color: #0f4c81;
+      background: rgba(15, 76, 129, 0.05);
     }
-    
+
     .tab.active {
-      color: #2980b9;
-      border-bottom-color: #2980b9;
+      color: #0f4c81;
+      border-bottom-color: #0f4c81;
       background: #fff;
     }
-    
+
     .form-wrapper {
-      padding: 32px;
+      padding: 32px 34px 36px;
     }
-    
+
     form {
       display: flex;
       flex-direction: column;
       gap: 20px;
       animation: fadeIn 0.4s ease;
     }
-    
+
     @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(10px); }
-      to { opacity: 1; transform: translateY(0); }
+      from {
+        opacity: 0;
+        transform: translateY(12px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
     }
-    
+
     .form-group {
       display: flex;
       flex-direction: column;
-      gap: 6px;
+      gap: 8px;
     }
-    
+
     label {
       font-size: 0.82rem;
       font-weight: 700;
-      color: #34495e;
-      letter-spacing: 0.3px;
+      color: #3b4f6b;
+      letter-spacing: 0.28px;
       text-transform: uppercase;
     }
-    
-    input, select {
-      padding: 12px 16px;
-      border: 2px solid #e2e8f0;
-      border-radius: 8px;
-      font-size: 0.95rem;
-      color: #2d3748;
-      background: #fcfdfd;
-      transition: all 0.25s ease;
+
+    input,
+    select {
+      padding: 14px 16px;
+      border: 1px solid #d7e5f3;
+      border-radius: 12px;
+      font-size: 0.96rem;
+      color: #24344b;
+      background: #fbfdff;
+      transition: border-color 0.25s ease, box-shadow 0.25s ease;
       outline: none;
     }
-    
-    input:focus, select:focus {
-      border-color: #2980b9;
-      background: #fff;
-      box-shadow: 0 0 0 3px rgba(41, 128, 185, 0.15);
+
+    input::placeholder {
+      color: #8a9bb5;
     }
-    
+
+    input:focus,
+    select:focus {
+      border-color: #4e8ed1;
+      background: #fff;
+      box-shadow: 0 0 0 4px rgba(46, 119, 199, 0.12);
+    }
+
     .btn {
-      padding: 14px;
+      padding: 14px 18px;
       border: none;
-      border-radius: 8px;
-      font-size: 0.95rem;
+      border-radius: 12px;
+      font-size: 0.96rem;
       font-weight: 700;
       cursor: pointer;
       color: #fff;
-      background: linear-gradient(135deg, #2980b9 0%, #2471a3 100%);
-      transition: all 0.25s ease;
-      box-shadow: 0 4px 12px rgba(41, 128, 185, 0.2);
+      background: linear-gradient(135deg, #1964b3 0%, #1d79cc 100%);
+      transition: transform 0.25s ease, box-shadow 0.25s ease;
+      box-shadow: 0 12px 24px rgba(25, 100, 179, 0.18);
     }
-    
+
     .btn:hover {
-      opacity: 0.95;
-      box-shadow: 0 6px 18px rgba(41, 128, 185, 0.35);
       transform: translateY(-1px);
+      box-shadow: 0 16px 28px rgba(25, 100, 179, 0.24);
     }
-    
+
     .btn:active {
       transform: translateY(1px);
     }
 
+    .info-block {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-top: 12px;
+      padding: 16px 18px;
+      border-radius: 14px;
+      background: #f3f8ff;
+      border: 1px solid #d8eaf7;
+      color: #375a82;
+      font-size: 0.88rem;
+      line-height: 1.6;
+    }
+
+    .info-block strong {
+      color: #173d64;
+    }
+
     .error-msg {
-      background: #fdf2f2;
-      border-left: 4px solid #f98080;
-      color: #9b1c1c;
-      padding: 12px;
-      border-radius: 6px;
-      font-size: 0.85rem;
+      background: #fdf0f1;
+      border-left: 4px solid #da7a86;
+      color: #8b2431;
+      padding: 14px 16px;
+      border-radius: 10px;
+      font-size: 0.9rem;
       display: none;
       align-items: center;
-      gap: 8px;
-      margin-bottom: 16px;
+      gap: 10px;
+      margin-bottom: 12px;
       animation: shake 0.3s ease;
     }
 
     @keyframes shake {
-      0%, 100% { transform: translateX(0); }
-      25% { transform: translateX(-5px); }
-      75% { transform: translateX(5px); }
+
+      0%,
+      100% {
+        transform: translateX(0);
+      }
+
+      25% {
+        transform: translateX(-5px);
+      }
+
+      75% {
+        transform: translateX(5px);
+      }
     }
 
     .hidden {
       display: none !important;
     }
+
+    @media (max-width: 520px) {
+      .auth-header {
+        padding: 28px 24px 22px;
+      }
+
+      .form-wrapper {
+        padding: 26px 24px 28px;
+      }
+
+      .tabs {
+        grid-template-columns: 1fr;
+      }
+    }
   </style>
 </head>
+
 <body>
 
   <div class="auth-container">
     <div class="auth-header">
-      <h1>Teacher AI Assistant</h1>
-      <p>Secure Portal Login & Registration</p>
+      <h1>Student & Teacher Portal</h1>
+      <p>Trusted access for learners and educators — secure, calm, and easy to use.</p>
+      <div class="signal-row">
+        <span class="signal-pill">Student-friendly</span>
+        <span class="signal-pill">Teacher-ready</span>
+      </div>
     </div>
 
     <div class="tabs">
@@ -215,22 +318,22 @@
             <option value="teacher">Teacher</option>
           </select>
         </div>
-        
+
         <div class="form-group">
           <label for="signup-id">User ID / Email</label>
           <input type="text" id="signup-id" required placeholder="e.g., Student ID or email">
         </div>
-        
+
         <div class="form-group">
           <label for="signup-name">Full Name</label>
           <input type="text" id="signup-name" required placeholder="Jane Doe">
         </div>
-        
+
         <div class="form-group">
           <label for="signup-password">Password</label>
           <input type="password" id="signup-password" required placeholder="Create a strong password">
         </div>
-        
+
         <!-- Student Metadata Column -->
         <div class="form-group" id="class-code-group">
           <label for="signup-class-code">Class Code</label>
@@ -265,8 +368,8 @@
       clearError();
       document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
       document.querySelectorAll('form').forEach(f => f.classList.add('hidden'));
-      
-      if(mode === 'login') {
+
+      if (mode === 'login') {
         document.getElementById('login-tab').classList.add('active');
         document.getElementById('login-form').classList.remove('hidden');
       } else {
@@ -293,7 +396,7 @@
         id: document.getElementById('login-id').value,
         password: document.getElementById('login-password').value
       };
-      
+
       try {
         const response = await fetch('/login', {
           method: 'POST',
@@ -301,8 +404,8 @@
           body: JSON.stringify(payload)
         });
         const data = await response.json();
-        
-        if(response.ok) {
+
+        if (response.ok) {
           window.location.href = data.redirect;
         } else {
           showError(data.error || "An error occurred during login.");
@@ -332,8 +435,8 @@
           body: JSON.stringify(payload)
         });
         const data = await response.json();
-        
-        if(response.ok) {
+
+        if (response.ok) {
           alert("Account successfully created! Please log in.");
           switchTab('login');
         } else {
@@ -345,4 +448,5 @@
     }
   </script>
 </body>
+
 </html>
